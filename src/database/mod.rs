@@ -3,7 +3,8 @@
 mod http;
 
 use dataset::Dataset;
-use value::Value;
+use value::{Value, Ref};
+use error::Error;
 
 /// The protocol to use to connect to the database
 #[derive(Clone, Copy)]
@@ -22,10 +23,26 @@ pub struct DatabaseBuilder {
     database: String,
 }
 
+pub struct CommitOptions {
+    // TODO: un-generalize this when Rust<->Noms conversions are implemented
+    parents: Value,
+    meta: Value,
+}
+
 pub trait Database {
     /// Returns the root of the database, which is a Map<String, Ref<Commit>>, where the key is the
     /// ID of the dataset.
     fn datasets(&self) -> Value;
+    fn dataset(&self, ds: String) -> Dataset;
+    fn rebase(&self);
+    fn commit(&self, ds: Dataset, v: Value, o: CommitOptions) -> Result<Dataset, Error>;
+    fn commit_value(&self, ds: Dataset, v: Value) -> Result<Dataset, Error>;
+    fn delete(&self, ds: Dataset) -> Result<Dataset, Error>;
+    fn set_head(&self, ds: Dataset, head: Ref) -> Result<Dataset, Error>;
+    fn fast_forward(&self, ds: Dataset, head: Ref) -> Result<Dataset, Error>;
+    // TODO: implement stats at another time
+    fn stats(&self) {}
+    fn stats_summary(&self) -> String { "Unsupported".to_string() }
 }
 
 impl DatabaseBuilder {

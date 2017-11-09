@@ -10,8 +10,9 @@ extern crate crypto;
 pub mod database;
 pub mod dataset;
 pub mod value;
-pub mod http;
+pub mod error;
 
+mod http;
 mod codec;
 mod chunk;
 mod hash;
