@@ -5,6 +5,10 @@ mod http;
 use dataset::Dataset;
 use value::{Value, Ref};
 use error::Error;
+use std::collections::HashMap;
+use Noms;
+
+const DEFAULT_VERSION: &'static str = "7.18";
 
 /// The protocol to use to connect to the database
 #[derive(Clone, Copy)]
@@ -16,24 +20,17 @@ impl Default for Protocol {
     fn default() -> Self { Protocol::Http }
 }
 
-/// A connection to a database
-#[derive(Default)]
-pub struct DatabaseBuilder {
-    protocol: Protocol,
-    database: String,
-    version: String,
-}
-
 pub struct CommitOptions {
-    // TODO: un-generalize this when Rust<->Noms conversions are implemented
+    // TODO: un-generalize this when Rust<->Noms conversions are implemented?
     parents: Value,
     meta: Value,
 }
 
+/// A trait providing full access to the underlying Noms database.
 pub trait Database {
     /// Returns the root of the database, which is a Map<String, Ref<Commit>>, where the key is the
     /// ID of the dataset.
-    fn datasets(&self) -> Value;
+    fn datasets(&self) -> HashMap<String, Value>;
     fn dataset(&self, ds: String) -> Dataset;
     fn rebase(&self);
     fn commit(&self, ds: Dataset, v: Value, o: CommitOptions) -> Result<Dataset, Error>;
@@ -46,23 +43,34 @@ pub trait Database {
     fn stats_summary(&self) -> String { "Unsupported".to_string() }
 }
 
-impl DatabaseBuilder {
+/// Used to construct a new connection to the database
+pub struct DatabaseBuilder<'a> {
+    protocol: Protocol,
+    database: String,
+    version: String,
+    noms: &'a Noms,
+}
+
+impl<'a> DatabaseBuilder<'a> {
+    pub(super) fn new(noms: &'a Noms) -> Self {
+        DatabaseBuilder{ noms, protocol: Protocol::Http, database: "".to_string(), version: DEFAULT_VERSION.to_string() }
+    }
     /// Creates a new connection to an HTTP database
-    pub fn http(database: String) -> Self {
-        Self{ protocol: Protocol::Http, database, ..Self::default() }
+    pub fn http(self, database: &str) -> Self {
+        Self{ protocol: Protocol::Http, database: database.to_string(), ..self }
     }
     /// Creates a new connection to an HTTPS database
-    pub fn https(database: String) -> Self {
-        Self{ protocol: Protocol::Https, database, ..Self::default() }
+    pub fn https(self, database: &str) -> Self {
+        Self{ protocol: Protocol::Https, database: database.to_string(), ..self }
     }
-
-    pub fn noms_version(self, version: String) -> Self {
-        Self{ version, ..self }
+    /// Sets the Noms version number, required for the request header
+    pub fn noms_version(self, version: &str) -> Self {
+        Self{ version: version.to_string(), ..self }
     }
-
-    pub fn build(self) -> Box<Database> {
+    /// Constructs the actual database, returning any errors that may occur
+    pub fn build(self) -> Result<Box<Database>, Error> {
         match self.protocol {
-            Protocol::Http => Box::new(http::Database::new(self.database, self.version)),
+            Protocol::Http => Ok(Box::new(http::Database::new(self.database, self.version, &self.noms.event_loop.handle())?)),
             Protocol::Https => unimplemented!(),
         }
     }

@@ -1,15 +1,13 @@
 //! Handles the actual HTTP(S) requests to be sent to the Noms server
 
 use hyper;
-use hyper::{Client, Request, Method, StatusCode};
-use hyper::header::Header;
+use hyper::{Request, Method, StatusCode};
 use hyper::client::HttpConnector;
-use tokio_core::reactor::Core;
+use tokio_core::reactor::Handle;
 use futures::{Future, Stream};
-use std::fmt;
 use error::Error;
-
-use chunk::Chunk;
+use hash::Hash;
+use hash;
 
 const ROOT_PATH: &'static str           = "/root/";
 const GET_REFS_PATH: &'static str       = "/getRefs/";
@@ -24,28 +22,31 @@ const NOMS_VERSION_HEADER: &'static str = "X-Noms-Vers";
 
 header! { (XNomsVersion, NOMS_VERSION_HEADER) => [String] }
 
-pub struct HttpClient {
-    client: Client<HttpConnector>,
+#[derive(Clone)]
+pub struct Client {
+    client: hyper::Client<HttpConnector>,
     database: String,
     version: String,
 }
 
-impl HttpClient {
-    pub fn new(database: String, version: String) -> Self {
-        Self{ database, version: version, client: Client::new(&Core::new().unwrap().handle()) }
+impl Client {
+    pub fn new(database: String, version: String, handle: &Handle) -> Self {
+        Self{ database, version: version, client: hyper::Client::new(handle) }
     }
 
     fn request_for(&self, method: Method, path: &'static str) -> hyper::Result<Request> {
-        let mut req = Request::new(method, (self.database.clone() + path).parse()?);
+        let mut req = Request::new(method, format!("http://{}{}", self.database, path).parse()?);
         req.headers_mut().set(XNomsVersion(self.version.clone()));
         Ok(req)
     }
 
-    pub fn get_root(&self) -> Result<Chunk, Error> {
+    pub fn get_root(&self) -> Result<Hash, Error> {
         let req = self.request_for(Method::Get, ROOT_PATH)?;
+        println!("{:?}", req);
         let res = self.client.request(req).wait()?;
+        println!("{:?}", res);
         match res.status() {
-            StatusCode::Ok => Ok(Chunk::from_bytes(&*res.body().concat2().wait()?)),
+            StatusCode::Ok => hash::parse(String::from_utf8((*res.body().concat2().wait()?).to_vec())?),
             status => Err(Error::Http(status))
         }
     }

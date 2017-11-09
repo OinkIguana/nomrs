@@ -1,25 +1,33 @@
-/// Defines a database that is backed by an HTTP Noms database
+/// Defines a database that is backed by a Noms HTTP database
 
+use std::collections::HashMap;
+use tokio_core::reactor::Handle;
 use value::{Value, Ref};
 use dataset::Dataset;
 use error::Error;
+use http::Client;
+use hash::Hash;
 use super::CommitOptions;
 
-#[derive(Default)]
+#[derive(Clone)]
 pub struct Database {
     database: String,
-    dataset: String,
     version: String,
+    client: Client,
+    root: Hash,
 }
 
 impl Database {
-    pub fn new(database: String, version: String) -> Self {
-        Self{ database, version, ..Self::default() }
+    pub fn new(database: String, version: String, handle: &Handle) -> Result<Self, Error> {
+        let client = Client::new(database.clone(), version.clone(), handle);
+        let root = client.get_root()?;
+        println!("Hash: {:?}", root);
+        Ok(Self{ database, version, client, root })
     }
 }
 
 impl super::Database for Database {
-    fn datasets(&self) -> Value { unimplemented!() }
+    fn datasets(&self) -> HashMap<String, Value> { unimplemented!() }
     fn dataset(&self, ds: String) -> Dataset { unimplemented!() }
     fn rebase(&self) { unimplemented!() }
     fn commit(&self, ds: Dataset, v: Value, o: CommitOptions) -> Result<Dataset, Error> { unimplemented!() }
