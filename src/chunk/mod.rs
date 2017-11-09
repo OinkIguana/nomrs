@@ -7,3 +7,9 @@ pub struct Chunk {
     hash: Hash,
     data: Vec<u8>,
 }
+
+impl Chunk {
+    pub fn from_bytes<'a>(bytes: &'a [u8]) -> Self {
+        unimplemented!()
+    }
+}
