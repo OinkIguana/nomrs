@@ -4,8 +4,12 @@
 //! TODO: documentation
 //! TODO: examples
 
+#[macro_use] extern crate lazy_static;
 extern crate byteorder;
 extern crate crypto;
+#[macro_use] extern crate hyper;
+extern crate tokio_core;
+extern crate futures;
 
 pub mod database;
 pub mod dataset;

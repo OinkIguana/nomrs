@@ -21,6 +21,7 @@ impl Default for Protocol {
 pub struct DatabaseBuilder {
     protocol: Protocol,
     database: String,
+    version: String,
 }
 
 pub struct CommitOptions {
@@ -55,9 +56,13 @@ impl DatabaseBuilder {
         Self{ protocol: Protocol::Https, database, ..Self::default() }
     }
 
+    pub fn noms_version(self, version: String) -> Self {
+        Self{ version, ..self }
+    }
+
     pub fn build(self) -> Box<Database> {
         match self.protocol {
-            Protocol::Http => Box::new(http::Database::new(self.database)),
+            Protocol::Http => Box::new(http::Database::new(self.database, self.version)),
             Protocol::Https => unimplemented!(),
         }
     }

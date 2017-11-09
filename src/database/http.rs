@@ -9,11 +9,12 @@ use super::CommitOptions;
 pub struct Database {
     database: String,
     dataset: String,
+    version: String,
 }
 
 impl Database {
-    pub fn new(database: String) -> Self {
-        Self{ database, ..Self::default() }
+    pub fn new(database: String, version: String) -> Self {
+        Self{ database, version, ..Self::default() }
     }
 }
 
