@@ -1,6 +1,9 @@
 //! Manages connections to a database
 
+mod http;
+
 use dataset::Dataset;
+use value::Value;
 
 /// The protocol to use to connect to the database
 #[derive(Clone, Copy)]
@@ -13,14 +16,19 @@ impl Default for Protocol {
 }
 
 /// A connection to a database
-#[derive(Clone, Default)]
-pub struct Database {
-    pub protocol: Protocol,
-    pub database: String,
-    pub dataset: String,
+#[derive(Default)]
+pub struct DatabaseBuilder {
+    protocol: Protocol,
+    database: String,
 }
 
-impl Database {
+pub trait Database {
+    /// Returns the root of the database, which is a Map<String, Ref<Commit>>, where the key is the
+    /// ID of the dataset.
+    fn datasets(&self) -> Value;
+}
+
+impl DatabaseBuilder {
     /// Creates a new connection to an HTTP database
     pub fn http(database: String) -> Self {
         Self{ protocol: Protocol::Http, database, ..Self::default() }
@@ -29,10 +37,11 @@ impl Database {
     pub fn https(database: String) -> Self {
         Self{ protocol: Protocol::Https, database, ..Self::default() }
     }
-    /// Create's a handle to some dataset in the database
-    pub fn dataset(&self, dataset: String) -> Dataset {
-        Dataset::new(&self, dataset)
+
+    pub fn build(self) -> Box<Database> {
+        match self.protocol {
+            Protocol::Http => Box::new(http::Database::new(self.database)),
+            Protocol::Https => unimplemented!(),
+        }
     }
-    /// Closes this database. Databases are automatically closed when dropped
-    pub fn close(self) {}
 }
