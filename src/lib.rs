@@ -31,6 +31,7 @@ struct InnerNoms {
     event_loop: Core,
 }
 
+#[derive(Clone)]
 pub struct Noms(Rc<RefCell<InnerNoms>>);
 
 impl Noms {

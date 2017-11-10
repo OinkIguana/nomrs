@@ -20,7 +20,7 @@ pub const STRING_LEN: usize = 32;
 
 /// Representation of a hash
 pub type Hash = [u8; BYTE_LEN];
-const EMPTY_HASH: Hash = [0; BYTE_LEN];
+pub const EMPTY_HASH: Hash = [0; BYTE_LEN];
 
 /// Produces the hash of an array of bytes
 // TODO: ensure this produces the same sort of hashes as the Go hasher

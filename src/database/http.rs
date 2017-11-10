@@ -8,7 +8,7 @@ use value::{Value, Ref};
 use dataset::Dataset;
 use error::Error;
 use http::Client;
-use hash::Hash;
+use hash::{Hash, EMPTY_HASH};
 use InnerNoms;
 
 #[derive(Clone)]
@@ -30,8 +30,16 @@ impl Database {
 }
 
 impl super::Database for Database {
-    fn datasets(&self) -> HashMap<String, Value> { unimplemented!() }
-    fn dataset(&self, ds: String) -> Dataset { unimplemented!() }
+    fn datasets(&self) -> HashMap<String, Ref> {
+        if self.root == EMPTY_HASH {
+            HashMap::new()
+        } else {
+            HashMap::new()
+        }
+    }
+    fn dataset<'a>(&'a self, ds: String) -> Dataset<'a> {
+        Dataset::new(self, ds)
+    }
     fn rebase(&self) { unimplemented!() }
     fn commit(&self, ds: Dataset, v: Value, o: CommitOptions) -> Result<Dataset, Error> { unimplemented!() }
     fn commit_value(&self, ds: Dataset, v: Value) -> Result<Dataset, Error> { unimplemented!() }

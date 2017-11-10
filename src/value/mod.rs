@@ -38,7 +38,7 @@ pub struct Struct(HashMap<String, Value>);
 
 pub struct Ref {
     hash: String,
-    value: Box<Value>
+    // value: Box<Value>,
 }
 
 trait Nommable {

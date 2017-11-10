@@ -33,7 +33,8 @@ pub struct CommitOptions {
 pub trait Database {
     /// Returns the root of the database, which is a Map<String, Ref<Commit>>, where the key is the
     /// ID of the dataset.
-    fn datasets(&self) -> HashMap<String, Value>;
+    fn datasets(&self) -> HashMap<String, Ref>;
+    /// Gets the Dataset corresponding to the given ds dataset ID from the datasets map.
     fn dataset(&self, ds: String) -> Dataset;
     fn rebase(&self);
     fn commit(&self, ds: Dataset, v: Value, o: CommitOptions) -> Result<Dataset, Error>;
