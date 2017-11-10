@@ -4,7 +4,7 @@ use hyper;
 use hyper::{Request, Method, StatusCode};
 use hyper::client::HttpConnector;
 use tokio_core::reactor::Handle;
-use futures::{Future, Stream};
+use futures::{Future, Stream, future};
 use error::Error;
 use hash::Hash;
 use hash;
@@ -40,14 +40,19 @@ impl Client {
         Ok(req)
     }
 
-    pub fn get_root(&self) -> Result<Hash, Error> {
-        let req = self.request_for(Method::Get, ROOT_PATH)?;
-        println!("{:?}", req);
-        let res = self.client.request(req).wait()?;
-        println!("{:?}", res);
-        match res.status() {
-            StatusCode::Ok => hash::parse(String::from_utf8((*res.body().concat2().wait()?).to_vec())?),
-            status => Err(Error::Http(status))
-        }
+    pub fn get_root(&self) -> Box<Future<Item = Hash, Error = Error>> {
+        let client = self.client.clone();
+        Box::new(
+            future::result(self.request_for(Method::Get, ROOT_PATH))
+                .and_then(move |req| client.request(req))
+                .map_err(|err| Error::Hyper(err))
+                .and_then(|res| -> Box<Future<Item = _, Error = _>> {
+                    match res.status() {
+                        StatusCode::Ok => Box::new(res.body().concat2().map_err(|err| Error::Hyper(err))),
+                        status => Box::new(future::result(Err(Error::Http(status)))),
+                    }
+                })
+                .and_then(|chunk| hash::parse(&*chunk))
+        )
     }
 }

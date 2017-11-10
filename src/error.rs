@@ -4,7 +4,7 @@
 pub enum Error {
     Hyper(::hyper::Error),
     Http(::hyper::StatusCode),
-    Hash(&'static str),
+    Hash(String),
 }
 
 impl From<::hyper::Error> for Error {
@@ -12,9 +12,9 @@ impl From<::hyper::Error> for Error {
 }
 
 impl From<::data_encoding::DecodePartial> for Error {
-    fn from(err: ::data_encoding::DecodePartial) -> Self { Error::Hash("Could not decode hash") }
+    fn from(err: ::data_encoding::DecodePartial) -> Self { Error::Hash(format!("Could not decode hash: {:?}", err)) }
 }
 
 impl From<::std::string::FromUtf8Error> for Error {
-    fn from(err: ::std::string::FromUtf8Error) -> Self { Error::Hash("Hash data was not valid UTF-8") }
+    fn from(err: ::std::string::FromUtf8Error) -> Self { Error::Hash(format!("Hash data was not valid UTF-8: {:?}", err)) }
 }

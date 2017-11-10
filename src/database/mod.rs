@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use Noms;
 
 const DEFAULT_VERSION: &'static str = "7.18";
+const UNSUPPORTED: &'static str = "Unsupported";
 
 /// The protocol to use to connect to the database
 #[derive(Clone, Copy)]
@@ -40,7 +41,7 @@ pub trait Database {
     fn fast_forward(&self, ds: Dataset, head: Ref) -> Result<Dataset, Error>;
     // TODO: implement stats at another time
     fn stats(&self) {}
-    fn stats_summary(&self) -> String { "Unsupported".to_string() }
+    fn stats_summary(&self) -> String { UNSUPPORTED.to_string() }
 }
 
 /// Used to construct a new connection to the database
@@ -48,11 +49,11 @@ pub struct DatabaseBuilder<'a> {
     protocol: Protocol,
     database: String,
     version: String,
-    noms: &'a Noms,
+    noms: &'a mut Noms,
 }
 
 impl<'a> DatabaseBuilder<'a> {
-    pub(super) fn new(noms: &'a Noms) -> Self {
+    pub(super) fn new(noms: &'a mut Noms) -> Self {
         DatabaseBuilder{ noms, protocol: Protocol::Http, database: "".to_string(), version: DEFAULT_VERSION.to_string() }
     }
     /// Creates a new connection to an HTTP database
@@ -70,7 +71,7 @@ impl<'a> DatabaseBuilder<'a> {
     /// Constructs the actual database, returning any errors that may occur
     pub fn build(self) -> Result<Box<Database>, Error> {
         match self.protocol {
-            Protocol::Http => Ok(Box::new(http::Database::new(self.database, self.version, &self.noms.event_loop.handle())?)),
+            Protocol::Http => Ok(Box::new(http::Database::new(self.noms, self.database, self.version)?)),
             Protocol::Https => unimplemented!(),
         }
     }

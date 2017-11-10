@@ -3,10 +3,16 @@
 use error::Error;
 use crypto::digest::Digest;
 use crypto::sha2::Sha512;
-use data_encoding::BASE32;
+use data_encoding::{Encoding, Specification};
 
+lazy_static! {
+    static ref HASH_FORMAT: Encoding = {
+        let mut spec = Specification::new();
+        spec.symbols.push_str("0123456789abcdefghijklmnopqrstuv");
+        spec.encoding().unwrap()
+    };
+}
 const OUTPUT_BYTES: usize = 64;
-
 /// Number of bytes used to represent the hash
 pub const BYTE_LEN: usize = 20;
 /// Number of characters used to represent the hash in a base32 string
@@ -28,9 +34,9 @@ pub fn hash<'a>(input: &'a [u8]) -> Hash {
     hash
 }
 
-pub fn parse(base32: String) -> Result<Hash, Error> {
+pub fn parse(base32: &[u8]) -> Result<Hash, Error> {
     let mut hash: Hash = [0; BYTE_LEN];
-    let len = BASE32.decode_mut(base32.as_bytes(), &mut hash)?;
+    let len = HASH_FORMAT.decode_mut(base32, &mut hash)?;
     assert_eq!(BYTE_LEN, len);
     Ok(hash)
 }

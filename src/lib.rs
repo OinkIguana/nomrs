@@ -4,6 +4,7 @@
 //! TODO: documentation
 //! TODO: examples
 
+#[macro_use] extern crate lazy_static;
 extern crate byteorder;
 extern crate crypto;
 #[macro_use] extern crate hyper;
@@ -33,7 +34,7 @@ impl Noms {
         Self{ event_loop: Core::new().unwrap() }
     }
 
-    pub fn database(&self) -> DatabaseBuilder {
+    pub fn database(&mut self) -> DatabaseBuilder {
         DatabaseBuilder::new(self)
     }
 }

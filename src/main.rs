@@ -6,7 +6,7 @@ extern crate nomrs;
 use nomrs::Noms;
 
 fn main() {
-    let noms = Noms::new();
+    let mut noms = Noms::new();
     println!("running");
     let db = noms.database()
         .http("localhost:8000")
