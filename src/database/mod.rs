@@ -2,11 +2,13 @@
 
 mod http;
 
+use std::cell::RefCell;
+use std::rc::Rc;
 use dataset::Dataset;
 use value::{Value, Ref};
 use error::Error;
 use std::collections::HashMap;
-use Noms;
+use InnerNoms;
 
 const DEFAULT_VERSION: &'static str = "7.18";
 const UNSUPPORTED: &'static str = "Unsupported";
@@ -45,15 +47,15 @@ pub trait Database {
 }
 
 /// Used to construct a new connection to the database
-pub struct DatabaseBuilder<'a> {
+pub struct DatabaseBuilder {
     protocol: Protocol,
     database: String,
     version: String,
-    noms: &'a mut Noms,
+    noms: Rc<RefCell<InnerNoms>>,
 }
 
-impl<'a> DatabaseBuilder<'a> {
-    pub(super) fn new(noms: &'a mut Noms) -> Self {
+impl DatabaseBuilder {
+    pub(super) fn new(noms: Rc<RefCell<InnerNoms>>) -> Self {
         DatabaseBuilder{ noms, protocol: Protocol::Http, database: "".to_string(), version: DEFAULT_VERSION.to_string() }
     }
     /// Creates a new connection to an HTTP database

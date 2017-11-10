@@ -1,13 +1,15 @@
 /// Defines a database that is backed by a Noms HTTP database
 
 use std::collections::HashMap;
+use std::cell::RefCell;
+use std::rc::Rc;
+use super::CommitOptions;
 use value::{Value, Ref};
 use dataset::Dataset;
 use error::Error;
 use http::Client;
 use hash::Hash;
-use super::CommitOptions;
-use Noms;
+use InnerNoms;
 
 #[derive(Clone)]
 pub struct Database {
@@ -15,14 +17,15 @@ pub struct Database {
     version: String,
     client: Client,
     root: Hash,
+    noms: Rc<RefCell<InnerNoms>>,
 }
 
 impl Database {
-    pub fn new(noms: &mut Noms, database: String, version: String) -> Result<Self, Error> {
-        let client = Client::new(database.clone(), version.clone(), &noms.event_loop.handle());
+    pub(super) fn new(noms: Rc<RefCell<InnerNoms>>, database: String, version: String) -> Result<Self, Error> {
+        let client = Client::new(database.clone(), version.clone(), &noms.borrow().event_loop.handle());
         let get_root = client.get_root();
-        let root = noms.event_loop.run(get_root)?;
-        Ok(Self{ database, version, client, root })
+        let root = noms.borrow_mut().event_loop.run(get_root)?;
+        Ok(Self{ database, version, client, root, noms: noms.clone() })
     }
 }
 

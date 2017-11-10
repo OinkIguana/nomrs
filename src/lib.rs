@@ -22,19 +22,23 @@ mod codec;
 mod chunk;
 mod hash;
 
+use std::cell::RefCell;
+use std::rc::Rc;
 use tokio_core::reactor::Core;
 use database::DatabaseBuilder;
 
-pub struct Noms {
+struct InnerNoms {
     event_loop: Core,
 }
 
+pub struct Noms(Rc<RefCell<InnerNoms>>);
+
 impl Noms {
-    pub fn new() -> Self {
-        Self{ event_loop: Core::new().unwrap() }
+    pub fn new() -> Noms {
+        Noms(Rc::new(RefCell::new(InnerNoms{ event_loop: Core::new().unwrap() })))
     }
 
-    pub fn database(&mut self) -> DatabaseBuilder {
-        DatabaseBuilder::new(self)
+    pub fn database(self: Noms) -> DatabaseBuilder {
+        DatabaseBuilder::new(self.0.clone())
     }
 }
