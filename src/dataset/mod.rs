@@ -1,4 +1,5 @@
 use database::Database;
+use value::{Value, Commit, Ref};
 
 pub struct Dataset<'a> {
     dataset: String,
@@ -12,4 +13,10 @@ impl<'a> Dataset<'a> {
             database,
         }
     }
+
+    pub fn id(&self) -> String { self.dataset.clone() }
+
+    pub fn head(&self) -> Option<Commit> { unimplemented!() }
+    pub fn head_value(&self) -> Option<Value> { unimplemented!() }
+    pub fn head_ref(&self) -> Option<Ref> { unimplemented!() }
 }

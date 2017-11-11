@@ -4,11 +4,10 @@ use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 use super::CommitOptions;
-use value::{Value, Ref};
+use value::{Value, Ref, FromNoms};
 use dataset::Dataset;
 use error::Error;
 use http::Client;
-use hash::{Hash, EMPTY_HASH};
 use InnerNoms;
 
 #[derive(Clone)]
@@ -16,7 +15,7 @@ pub struct Database {
     database: String,
     version: String,
     client: Client,
-    root: Hash,
+    root: Ref,
     noms: Rc<RefCell<InnerNoms>>,
 }
 
@@ -30,11 +29,15 @@ impl Database {
 }
 
 impl super::Database for Database {
-    fn datasets(&self) -> HashMap<String, Ref> {
-        if self.root == EMPTY_HASH {
-            HashMap::new()
+    fn datasets(&self) -> Result<HashMap<String, Ref>, Error> {
+        if self.root.is_empty() {
+            Ok(HashMap::new())
         } else {
-            HashMap::new()
+            self.noms
+                .borrow_mut()
+                .event_loop
+                .run(self.client.post_get_refs(&self.root, vec![self.root.clone()]))
+                .map(|v| HashMap::from_noms(&v))
         }
     }
     fn dataset<'a>(&'a self, ds: String) -> Dataset<'a> {

@@ -1,6 +1,8 @@
 //! Generic representation of a value in the database
 
+mod conversion;
 use std::collections::{HashMap, HashSet};
+use hash::{Hash, EMPTY_HASH};
 
 pub enum Type {
     Boolean,
@@ -17,31 +19,52 @@ pub enum Type {
     Type,
 }
 
-pub enum Value {
-    Boolean(bool),
-    Number(Vec<u8>),
-    String(String),
-    Blob(Vec<u8>),
-    Set(HashSet<Value>),
-    List(Vec<Value>),
-    Map(HashMap<Value, Value>),
-    Union(Box<Value>),
-    Ref(Ref),
-    Struct(Struct),
-    Optional(Option<Box<Value>>),
-    Type(Type),
-}
+// TODO: this representation of value is probably wrong, and all of this will just be raw bytes
+//       with conversions defined instead
+// pub enum Value {
+//     Boolean(bool),
+//     Number(Vec<u8>),
+//     String(String),
+//     Blob(Vec<u8>),
+//     Set(HashSet<Value>),
+//     List(Vec<Value>),
+//     Map(HashMap<Value, Value>),
+//     Union(Box<Value>),
+//     Ref(Ref),
+//     Struct(Struct),
+//     Optional(Option<Box<Value>>),
+//     Type(Type),
+// }
+
+pub type Value = Vec<u8>;
 
 pub struct StructType(HashMap<String, Type>);
 
 pub struct Struct(HashMap<String, Value>);
 
-pub struct Ref {
-    hash: String,
-    // value: Box<Value>,
+pub struct Commit {
+    meta: Value,
+    parents: Value,
+    value: Value,
 }
 
-trait Nommable {
-    fn from(Value) -> Self;
-    fn to(Self) -> Value;
+#[derive(Clone)]
+pub struct Ref {
+    hash: Hash,
+    // value: Box<Value>,
+}
+impl Ref {
+    pub fn is_empty(&self) -> bool {
+        self.hash == EMPTY_HASH
+    }
+    pub fn hash_str(&self) -> String {
+        String::from_utf8(self.hash.to_vec()).unwrap()
+    }
+}
+
+pub trait IntoNoms {
+    fn into_noms(&self) -> Value;
+}
+pub trait FromNoms {
+    fn from_noms(&Value) -> Self;
 }
