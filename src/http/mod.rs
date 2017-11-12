@@ -1,7 +1,7 @@
 //! Handles the actual HTTP(S) requests to be sent to the Noms server
 
 use hyper;
-use hyper::{Request, Response, Method, StatusCode, Chunk};
+use hyper::{Request, Response, Method, StatusCode};
 use hyper::client::HttpConnector;
 use tokio_core::reactor::Handle;
 use futures::{Future, Stream, future};
@@ -9,6 +9,7 @@ use error::Error;
 use value::{Value, Ref, IntoNoms};
 use hash::Hash;
 use std::collections::HashMap;
+use chunk::Chunk;
 
 const ROOT_PATH: &'static str           = "/root/";
 const GET_REFS_PATH: &'static str       = "/getRefs/";
@@ -65,15 +66,23 @@ impl Client {
                 .and_then(move |req| client.request(req))
                 .map_err(|err| Error::Hyper(err))
                 .and_then(retrieve_body)
+                .map(Chunk::from_hyper)
                 .map(|chunk| {
+                    let reader = chunk.reader();
                     let mut values = HashMap::new();
+                    while !reader.empty() {
+                        let hash = reader.extract_hash();
+                        let len = reader.extract_u32();
+                        let bytes = reader.extract_raw(len as usize);
+                        values.insert(Ref::new(hash), bytes);
+                    }
                     values
                 })
         )
     }
 }
 
-fn retrieve_body(res: Response) -> Box<Future<Item = Chunk, Error = Error>> {
+fn retrieve_body(res: Response) -> Box<Future<Item = hyper::Chunk, Error = Error>> {
     match res.status() {
         StatusCode::Ok => Box::new(res.body().concat2().map_err(|err| Error::Hyper(err))),
         status => Box::new(future::result(Err(Error::Http(status)))),

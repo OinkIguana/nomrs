@@ -20,7 +20,7 @@ pub const STRING_LEN: usize = 32;
 
 pub const EMPTY_HASH: Hash = Hash([0; BYTE_LEN]);
 /// Representation of a hash
-#[derive(PartialEq, Eq, Clone, Copy, Hash)]
+#[derive(PartialEq, Eq, Clone, Copy, Hash, Debug)]
 pub struct Hash([u8; BYTE_LEN]);
 impl Hash {
     pub fn new(v: [u8; BYTE_LEN]) -> Self { Hash(v) }
@@ -36,6 +36,11 @@ impl Hash {
         let len = HASH_FORMAT.decode_mut(base32.as_bytes(), &mut hash)?;
         assert_eq!(BYTE_LEN, len);
         Ok(Hash(hash))
+    }
+}
+impl ::std::fmt::Display for Hash {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        writeln!(f, "{}", self.to_string())
     }
 }
 

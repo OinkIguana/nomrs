@@ -42,13 +42,14 @@ pub struct StructType(HashMap<String, Type>);
 
 pub struct Struct(HashMap<String, Value>);
 
+#[derive(Debug)]
 pub struct Commit {
     meta: Value,
     parents: Value,
     value: Value,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Ref {
     hash: Hash,
     // value: Box<Value>,

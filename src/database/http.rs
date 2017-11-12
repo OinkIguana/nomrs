@@ -37,7 +37,7 @@ impl super::Database for Database {
                 .borrow_mut()
                 .event_loop
                 .run(self.client.post_get_refs(&self.root, vec![self.root.clone()]))
-                .map(|v| unimplemented!())
+                .map(|v| HashMap::from_noms(&v[&self.root]))
         }
     }
     fn dataset<'a>(&'a self, ds: String) -> Dataset<'a> {
