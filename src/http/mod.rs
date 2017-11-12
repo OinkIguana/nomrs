@@ -6,7 +6,9 @@ use hyper::client::HttpConnector;
 use tokio_core::reactor::Handle;
 use futures::{Future, Stream, future};
 use error::Error;
-use value::{Value, Ref, FromNoms, IntoNoms};
+use value::{Value, Ref, IntoNoms};
+use hash::Hash;
+use std::collections::HashMap;
 
 const ROOT_PATH: &'static str           = "/root/";
 const GET_REFS_PATH: &'static str       = "/getRefs/";
@@ -50,25 +52,23 @@ impl Client {
                 .and_then(move |req| client.request(req))
                 .map_err(|err| Error::Hyper(err))
                 .and_then(retrieve_body)
-                .map(|chunk| Ref::from_noms(&chunk.to_vec()))
+                .map(|chunk| Ref::new(Hash::from_string(String::from_utf8(chunk.to_vec()).unwrap()).unwrap()))
         )
     }
 
-    pub fn post_get_refs(&self, root: &Ref, refs: Vec<Ref>) -> Box<Future<Item = Value, Error = Error>> {
+    pub fn post_get_refs(&self, root: &Ref, refs: Vec<Ref>) -> Box<Future<Item = HashMap<Ref, Value>, Error = Error>> {
         let client = self.client.clone();
         let body = refs.into_noms();
-        println!("request body: {:?}", body);
         Box::new(
-            future::result(self.request_with_query(Method::Post, GET_REFS_PATH, &format!("root={}", root.hash_str())))
+            future::result(self.request_with_query(Method::Post, GET_REFS_PATH, &format!("root={}", root.hash().to_string())))
                 .map(|mut req| { req.set_body(body); req })
-                .map(|req| { println!("request: {:?}", req); req })
                 .and_then(move |req| client.request(req))
                 .map_err(|err| Error::Hyper(err))
-                .map(|res| { println!("response: {:?}", res); res })
                 .and_then(retrieve_body)
-                .map(|body| { println!("response body: {:?}", body); body })
-                // TODO: parse result
-                .map(|_| unimplemented!())
+                .map(|chunk| {
+                    let mut values = HashMap::new();
+                    values
+                })
         )
     }
 }

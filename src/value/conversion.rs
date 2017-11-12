@@ -15,15 +15,15 @@ impl<T: IntoNoms> IntoNoms for Vec<T> {
 
 impl IntoNoms for Ref {
     fn into_noms(&self) -> Value {
-        self.hash.to_vec()
+        self.hash.raw_bytes().to_vec()
     }
 }
 
 impl FromNoms for Ref {
     fn from_noms(v: &Value) -> Self {
-        let mut hash: Hash = [0; BYTE_LEN];
+        let mut hash = [0; BYTE_LEN];
         hash.copy_from_slice(&v[..BYTE_LEN]);
-        Ref{ hash }
+        Ref{ hash: Hash::new(hash) }
     }
 }
 

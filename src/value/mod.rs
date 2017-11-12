@@ -48,17 +48,20 @@ pub struct Commit {
     value: Value,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Ref {
     hash: Hash,
     // value: Box<Value>,
 }
 impl Ref {
+    pub fn new(hash: Hash) -> Self {
+        Self{ hash }
+    }
     pub fn is_empty(&self) -> bool {
         self.hash == EMPTY_HASH
     }
-    pub fn hash_str(&self) -> String {
-        String::from_utf8(self.hash.to_vec()).unwrap()
+    pub fn hash(&self) -> Hash {
+        self.hash
     }
 }
 
