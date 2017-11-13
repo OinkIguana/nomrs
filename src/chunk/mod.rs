@@ -8,7 +8,7 @@ use value::{Kind, Ref};
 use std::mem::transmute;
 
 /// A chunk of raw bytes from the database
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct Chunk(Vec<u8>);
 
 impl Chunk {

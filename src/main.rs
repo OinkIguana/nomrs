@@ -7,11 +7,9 @@ use nomrs::Noms;
 
 fn main() {
     let noms = Noms::new();
-    println!("running");
     let db = noms.database()
         .http("localhost:8000")
         .noms_version("7.18")
         .build().unwrap();
-    println!("connected");
-    db.datasets();
+    println!("{:?}", db.datasets().unwrap());
 }

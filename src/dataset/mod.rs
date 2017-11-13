@@ -1,6 +1,5 @@
 use database::Database;
 use value::{Value, Commit, Ref};
-use chunk::Chunk;
 
 pub struct Dataset<'a> {
     dataset: String,
@@ -15,7 +14,7 @@ impl<'a> Dataset<'a> {
         }
     }
 
-    pub fn id(&self) -> String { self.dataset.clone() }
+    pub fn id(&self) -> &str { &self.dataset }
 
     pub fn head(&self) -> Option<Commit> { unimplemented!() }
     pub fn head_value(&self) -> Option<Value> { unimplemented!() }
