@@ -38,7 +38,7 @@ impl Noms {
         Noms(Rc::new(RefCell::new(InnerNoms{ event_loop: Core::new().unwrap() })))
     }
 
-    pub fn database(self: Noms) -> DatabaseBuilder {
+    pub fn database(&self) -> DatabaseBuilder {
         DatabaseBuilder::new(self.0.clone())
     }
 }
