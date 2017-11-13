@@ -35,7 +35,7 @@ pub trait Database {
     /// ID of the dataset.
     fn datasets(&self) -> Result<HashMap<String, Ref>, Error>;
     /// Gets the Dataset corresponding to the given ds dataset ID from the datasets map.
-    fn dataset(&self, ds: String) -> Dataset;
+    fn dataset(&self, ds: String) -> Result<Dataset, Error>;
     fn rebase(&self);
     fn commit(&self, ds: Dataset, v: Value, o: CommitOptions) -> Result<Dataset, Error>;
     fn commit_value(&self, ds: Dataset, v: Value) -> Result<Dataset, Error>;

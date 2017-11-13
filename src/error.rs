@@ -5,6 +5,7 @@ pub enum Error {
     Hyper(::hyper::Error),
     Http(::hyper::StatusCode),
     Hash(String),
+    NoDataset(String),
 }
 
 impl From<::hyper::Error> for Error {

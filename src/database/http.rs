@@ -43,16 +43,25 @@ impl super::Database for Database {
         if self.root.is_empty() {
             Ok(HashMap::new())
         } else {
-            self.noms
-                .borrow_mut()
-                .event_loop
-                .run(self.client.post_get_refs(&self.root, vec![self.root.clone()]))
-                .map(|mut v| HashMap::from_noms(&Value(v.remove(&self.root).unwrap())))
-                .map(|v| self.add_to_cache(self.root.clone(), v))
+            let cached = self.cache.borrow().get(&self.root).cloned();
+            match cached {
+                Some(chunk) => Ok(HashMap::from_noms(&Value(chunk))),
+                None =>
+                    self.noms
+                        .borrow_mut()
+                        .event_loop
+                        .run(self.client.post_get_refs(&self.root, vec![self.root.clone()]))
+                        .map(|mut v| HashMap::from_noms(&Value(v.remove(&self.root).unwrap())))
+                        .map(|v| self.add_to_cache(self.root.clone(), v))
+            }
         }
     }
-    fn dataset<'a>(&'a self, ds: String) -> Dataset<'a> {
-        Dataset::new(self, ds)
+    fn dataset<'a>(&'a self, ds: String) -> Result<Dataset<'a>, Error> {
+        let r = self.datasets()?
+            .get(&ds)
+            .ok_or_else(|| Error::NoDataset(ds.clone()))?
+            .clone();
+        Ok(Dataset::new(self, ds, r))
     }
     fn rebase(&self) { unimplemented!() }
     fn commit(&self, ds: Dataset, v: Value, o: CommitOptions) -> Result<Dataset, Error> { unimplemented!() }
