@@ -8,12 +8,11 @@ use std;
 #[derive(Clone, Debug)]
 pub struct Ref {
     hash: Hash,
-    value: Option<Box<Value>>,
 }
 
 impl Ref {
     pub fn new(hash: Hash) -> Self {
-        Self{ hash, value: None }
+        Self{ hash }
     }
     pub fn is_empty(&self) -> bool {
         self.hash == EMPTY_HASH
@@ -44,7 +43,10 @@ impl std::hash::Hash for Ref {
 
 impl IntoNoms for Ref {
     fn into_noms(&self) -> Value {
-        Value(Chunk::new(self.hash.raw_bytes().to_vec()))
+        Chunk::writer()
+            .write_ref(&self)
+            .finish()
+            .into_value()
     }
 }
 

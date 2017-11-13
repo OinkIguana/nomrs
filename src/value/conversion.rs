@@ -1,6 +1,6 @@
 use byteorder::{NetworkEndian, ByteOrder};
 use std::collections::HashMap;
-use super::{Value, Kind};
+use super::Value;
 use chunk::Chunk;
 
 pub trait IntoNoms {
@@ -8,6 +8,13 @@ pub trait IntoNoms {
 }
 pub trait FromNoms {
     fn from_noms(&Value) -> Self;
+}
+
+impl IntoNoms for Chunk {
+    fn into_noms(&self) -> Value { self.clone().into_value() }
+}
+impl FromNoms for Chunk {
+    fn from_noms(v: &Value) -> Chunk { v.0.clone() }
 }
 
 impl<T: IntoNoms> IntoNoms for Vec<T> {
@@ -20,18 +27,31 @@ impl<T: IntoNoms> IntoNoms for Vec<T> {
     }
 }
 
-impl<T: FromNoms> FromNoms for HashMap<String, T> {
+impl<K: FromNoms + Eq + ::std::hash::Hash, V: FromNoms> FromNoms for HashMap<K, V> {
     fn from_noms(v: &Value) -> Self {
-        let mut map = HashMap::new();
-        let reader = v.0.reader();
-        assert_eq!(Kind::Map, reader.extract_kind());
-        reader.skip(1); // idk what this byte is for yet
-        let entries = reader.extract_u8();
-        for _ in 0..entries {
-            let key = reader.extract_string();
-            let value = reader.extract_chunk();
-            map.insert(key, T::from_noms(&Value(value)));
-        }
-        map
+        v.0.reader().extract_map()
+    }
+}
+
+impl<K: IntoNoms + Eq + ::std::hash::Hash, V: IntoNoms> IntoNoms for HashMap<K, V> {
+    fn into_noms(&self) -> Value {
+        Chunk::writer()
+            .write_map(self)
+            .finish()
+            .into_value()
+    }
+}
+
+impl FromNoms for String {
+    fn from_noms(v: &Value) -> Self {
+        v.0.reader().extract_string()
+    }
+}
+impl IntoNoms for String {
+    fn into_noms(&self) -> Value {
+        Chunk::writer()
+            .write_string(self)
+            .finish()
+            .into_value()
     }
 }

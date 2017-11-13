@@ -6,10 +6,11 @@ use hyper::client::HttpConnector;
 use tokio_core::reactor::Handle;
 use futures::{Future, Stream, future};
 use error::Error;
-use value::{Ref, IntoNoms};
+use value::Ref;
 use hash::Hash;
 use std::collections::HashMap;
 use chunk::Chunk;
+use byteorder::{NetworkEndian, ByteOrder};
 
 const ROOT_PATH: &'static str           = "/root/";
 const GET_REFS_PATH: &'static str       = "/getRefs/";
@@ -59,7 +60,9 @@ impl Client {
 
     pub fn post_get_refs(&self, root: &Ref, refs: Vec<Ref>) -> Box<Future<Item = HashMap<Ref, Chunk>, Error = Error>> {
         let client = self.client.clone();
-        let body = refs.into_noms().into_raw();
+        let mut body = vec![0; 4];
+        NetworkEndian::write_u32(&mut body, refs.len() as u32);
+        body.extend(refs.iter().flat_map(|r| r.hash().raw_bytes().to_vec()));
         Box::new(
             future::result(self.request_with_query(Method::Post, GET_REFS_PATH, &format!("root={}", root.hash().to_string())))
                 .map(|mut req| { req.set_body(body); req })
