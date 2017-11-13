@@ -6,10 +6,10 @@ use std::cell::Cell;
 use byteorder::{NetworkEndian, ByteOrder};
 use value::{Value, Kind, Ref, IntoNoms, FromNoms};
 use std::mem::transmute;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// A chunk of raw bytes from the database
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub(crate) struct Chunk(Vec<u8>);
 
 impl Chunk {
@@ -57,6 +57,13 @@ impl<'a> ChunkReader<'a> {
         let offset = self.offset.get();
         let n = self.chunk.0[offset];
         self.offset.set(offset + 1);
+        n
+    }
+
+    pub fn extract_u16(&self) -> u32 {
+        let offset = self.offset.get();
+        let n = NetworkEndian::read_u32(&self.chunk.0[offset..offset + 8]);
+        self.offset.set(offset + 8);
         n
     }
 
@@ -108,6 +115,11 @@ impl<'a> ChunkReader<'a> {
                 self.extract_struct();
                 Chunk::new(self.chunk.0[offset..self.offset.get()].to_vec())
             }
+            Kind::Set => {
+                self.offset.set(offset);
+                self.extract_set::<Value>();
+                Chunk::new(self.chunk.0[offset..self.offset.get()].to_vec())
+            }
             _ => unimplemented!(),
         };
         self.offset.set(offset + chunk.0.len());
@@ -124,16 +136,25 @@ impl<'a> ChunkReader<'a> {
     }
 
     pub fn extract_map<K: FromNoms + Eq + ::std::hash::Hash, V: FromNoms>(&self) -> HashMap<K, V> {
-        let mut map = HashMap::new();
         assert_eq!(Kind::Map, self.extract_kind());
-        self.skip(1); // idk what this byte is for yet
-        let entries = self.extract_u8();
+        let mut map = HashMap::new();
+        let entries = self.extract_u16();
         for _ in 0..entries {
             let key = self.extract_chunk();
             let value = self.extract_chunk();
-            map.insert(K::from_noms(&Value(key)), V::from_noms(&Value(value)));
+            map.insert(K::from_noms(&key.into_value()), V::from_noms(&value.into_value()));
         }
         map
+    }
+
+    pub fn extract_set<V: FromNoms + ::std::hash::Hash + Eq>(&self) -> HashSet<V> {
+        assert_eq!(Kind::Set, self.extract_kind());
+        let len = self.extract_u16();
+        let mut set = HashSet::with_capacity(len as usize);
+        for _ in 0..len {
+            set.insert(V::from_noms(&self.extract_chunk().into_value()));
+        }
+        set
     }
 
     pub fn extract_raw(&self, len: usize) -> Chunk {
@@ -141,10 +162,6 @@ impl<'a> ChunkReader<'a> {
         let value = self.chunk.0[offset..offset + len].to_vec();
         self.offset.set(offset + len);
         Chunk(value)
-    }
-
-    pub fn skip(&self, skip: usize) {
-        self.offset.set(self.offset.get() + skip);
     }
 
     pub fn empty(&self) -> bool {

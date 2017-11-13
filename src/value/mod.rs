@@ -33,7 +33,7 @@ impl Kind {
 
 pub struct Type(Kind); // TODO: Figure out if this is needed?
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Value(pub(crate) Chunk);
 impl Value {
     pub fn raw(&self) -> &Vec<u8> {

@@ -49,14 +49,14 @@ impl<K: IntoNoms + Eq + ::std::hash::Hash, V: IntoNoms> IntoNoms for HashMap<K, 
     }
 }
 
-impl<V: IntoNoms> IntoNoms for HashSet<V> {
+impl<V: IntoNoms + Eq + ::std::hash::Hash> IntoNoms for HashSet<V> {
     fn into_noms(&self) -> Value {
         unimplemented!()
     }
 }
-impl<V: FromNoms> FromNoms for HashSet<V> {
+impl<V: FromNoms + Eq + ::std::hash::Hash> FromNoms for HashSet<V> {
     fn from_noms(v: &Value) -> Self {
-        unimplemented!()
+        v.0.reader().extract_set()
     }
 }
 
