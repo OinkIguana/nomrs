@@ -1,24 +1,32 @@
 //! Generic representation of a value in the database
 
 mod conversion;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use hash::{Hash, EMPTY_HASH};
 use chunk::Chunk;
 
-pub enum Type {
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum Kind {
     Boolean,
     Number,
     String,
     Blob,
-    Set(Box<Type>),
-    List(Box<Type>),
-    Map(Box<Type>, Box<Type>),
-    Union(HashSet<Type>),
-    Ref(Box<Type>),
-    Struct(StructType),
-    Optional(Box<Type>),
-    Type,
+    Value,
+    List,
+    Map,
+    Ref,
+    Set,
+    Struct,
+    Cycle,
+    Union,
 }
+impl Kind {
+    pub fn variants() -> usize {
+        Kind::Union as usize + 1
+    }
+}
+
+pub struct Type(Kind); // TODO: Figure out if this is needed?
 
 // TODO: this representation of value is probably wrong, and all of this will just be raw bytes
 //       with conversions defined instead
@@ -73,6 +81,11 @@ impl Ref {
     }
     pub fn hash(&self) -> Hash {
         self.hash
+    }
+}
+impl ::std::fmt::Display for Ref {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        write!(f, "Ref {{ hash: {} }}", self.hash)
     }
 }
 

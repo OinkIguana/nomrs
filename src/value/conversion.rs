@@ -1,7 +1,6 @@
 use byteorder::{NetworkEndian, ByteOrder};
 use std::collections::HashMap;
-use super::{Value, IntoNoms, FromNoms, Ref};
-use hash::{Hash, BYTE_LEN};
+use super::{Value, IntoNoms, FromNoms, Ref, Kind};
 use chunk::Chunk;
 
 impl<T: IntoNoms> IntoNoms for Vec<T> {
@@ -22,15 +21,22 @@ impl IntoNoms for Ref {
 
 impl FromNoms for Ref {
     fn from_noms(v: &Value) -> Self {
-        let mut hash = [0; BYTE_LEN];
-        hash.copy_from_slice(&v.0.data()[..BYTE_LEN]);
-        Ref{ hash: Hash::new(hash) }
+        v.0.reader().extract_ref()
     }
 }
 
 impl<T: FromNoms> FromNoms for HashMap<String, T> {
     fn from_noms(v: &Value) -> Self {
-        println!("{:?}", v);
-        unimplemented!()
+        let mut map = HashMap::new();
+        let reader = v.0.reader();
+        assert_eq!(Kind::Map, reader.extract_kind());
+        reader.skip(1); // idk what this byte is for yet
+        let entries = reader.extract_u8();
+        for _ in 0..entries {
+            let key = reader.extract_string();
+            let value = reader.extract_chunk();
+            map.insert(key, T::from_noms(&Value(value)));
+        }
+        map
     }
 }
