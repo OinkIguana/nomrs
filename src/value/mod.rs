@@ -2,9 +2,12 @@
 
 mod conversion;
 mod reference;
+mod commit;
 
 pub use self::reference::Ref;
 pub use self::conversion::{IntoNoms, FromNoms};
+pub use self::commit::Commit;
+
 use chunk::Chunk;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -39,11 +42,4 @@ impl Value {
     pub fn into_raw(self) -> Vec<u8> {
         self.0.into_data()
     }
-}
-
-#[derive(Debug)]
-pub struct Commit {
-    meta: Chunk,
-    parents: Chunk,
-    value: Chunk,
 }

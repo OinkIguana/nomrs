@@ -1,5 +1,5 @@
 use byteorder::{NetworkEndian, ByteOrder};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use super::Value;
 use chunk::Chunk;
 
@@ -15,6 +15,13 @@ impl IntoNoms for Chunk {
 }
 impl FromNoms for Chunk {
     fn from_noms(v: &Value) -> Chunk { v.0.clone() }
+}
+
+impl IntoNoms for Value {
+    fn into_noms(&self) -> Value { self.clone() }
+}
+impl FromNoms for Value {
+    fn from_noms(v: &Value) -> Self { v.clone() }
 }
 
 impl<T: IntoNoms> IntoNoms for Vec<T> {
@@ -39,6 +46,17 @@ impl<K: IntoNoms + Eq + ::std::hash::Hash, V: IntoNoms> IntoNoms for HashMap<K, 
             .write_map(self)
             .finish()
             .into_value()
+    }
+}
+
+impl<V: IntoNoms> IntoNoms for HashSet<V> {
+    fn into_noms(&self) -> Value {
+        unimplemented!()
+    }
+}
+impl<V: FromNoms> FromNoms for HashSet<V> {
+    fn from_noms(v: &Value) -> Self {
+        unimplemented!()
     }
 }
 

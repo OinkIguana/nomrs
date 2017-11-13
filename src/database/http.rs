@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
-use super::CommitOptions;
+use super::{CommitOptions, ValueAccess};
 use value::{Value, Ref, IntoNoms, FromNoms};
 use chunk::Chunk;
 use dataset::Dataset;
@@ -33,7 +33,6 @@ impl Database {
 impl Database {
     fn add_to_cache<I: IntoNoms>(&self, r: Ref, v: I) -> I {
         self.cache.borrow_mut().insert(r, v.into_noms().0);
-        println!("{:?}", self.cache.borrow());
         v
     }
 }
@@ -43,23 +42,14 @@ impl super::Database for Database {
         if self.root.is_empty() {
             Ok(HashMap::new())
         } else {
-            let cached = self.cache.borrow().get(&self.root).cloned();
-            match cached {
-                Some(chunk) => Ok(HashMap::from_noms(&Value(chunk))),
-                None =>
-                    self.noms
-                        .borrow_mut()
-                        .event_loop
-                        .run(self.client.post_get_refs(&self.root, vec![self.root.clone()]))
-                        .map(|mut v| HashMap::from_noms(&Value(v.remove(&self.root).unwrap())))
-                        .map(|v| self.add_to_cache(self.root.clone(), v))
-            }
+            self.get_value(&self.root)
+                .map(|v| HashMap::from_noms(&v))
         }
     }
-    fn dataset<'a>(&'a self, ds: String) -> Result<Dataset<'a>, Error> {
+    fn dataset<'a>(&'a self, ds: &str) -> Result<Dataset<'a>, Error> {
         let r = self.datasets()?
-            .get(&ds)
-            .ok_or_else(|| Error::NoDataset(ds.clone()))?
+            .get(ds)
+            .ok_or_else(|| Error::NoDataset(ds.to_string()))?
             .clone();
         Ok(Dataset::new(self, ds, r))
     }
@@ -69,4 +59,20 @@ impl super::Database for Database {
     fn delete(&self, ds: Dataset) -> Result<Dataset, Error> { unimplemented!() }
     fn set_head(&self, ds: Dataset, head: Ref) -> Result<Dataset, Error> { unimplemented!() }
     fn fast_forward(&self, ds: Dataset, head: Ref) -> Result<Dataset, Error> { unimplemented!() }
+}
+
+impl super::ValueAccess for Database {
+    fn get_value(&self, r: &Ref) -> Result<Value, Error> {
+        let cached = self.cache.borrow().get(r).cloned();
+        match cached {
+            Some(chunk) => Ok(Value(chunk)),
+            None =>
+                self.noms.borrow_mut()
+                    .event_loop
+                    .run(self.client.post_get_refs(&self.root, vec![r.clone()]))
+                    .and_then(|mut v| v.remove(r).ok_or(Error::NoValueForRef(r.clone())))
+                    .map(|v| self.add_to_cache(r.clone(), v))
+                    .map(|c| c.into_value())
+        }
+    }
 }
