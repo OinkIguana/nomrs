@@ -5,7 +5,7 @@ mod http;
 use std::cell::RefCell;
 use std::rc::Rc;
 use dataset::Dataset;
-use value::{Value, Ref, FromNoms, IntoNoms};
+use value::{Value, Ref};
 use error::Error;
 use std::collections::HashMap;
 use InnerNoms;

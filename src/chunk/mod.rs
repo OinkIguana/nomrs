@@ -67,13 +67,31 @@ impl<'a> ChunkReader<'a> {
         n
     }
 
-    pub fn extract_string(&self) -> String {
-        assert_eq!(Kind::String, self.extract_kind());
+    pub fn extract_struct(&self) -> (String, HashMap<String, Chunk>) {
+        assert_eq!(Kind::Struct, self.extract_kind());
+        let len = self.extract_u8();
+        let name = String::from_utf8(self.extract_raw(len as usize).into_data()).unwrap();
+        let prop_count = self.extract_u8() as usize;
+        let mut props = HashMap::with_capacity(prop_count);
+        for _ in 0..prop_count {
+            let key = self.extract_raw_string();
+            let value = self.extract_chunk();
+            props.insert(key, value);
+        }
+        (name, props)
+    }
+
+    fn extract_raw_string(&self) -> String {
         let len = self.extract_u8();
         let offset = self.offset.get();
         let string = String::from_utf8(self.chunk.0[offset..offset + len as usize].to_vec()).unwrap();
         self.offset.set(offset + len as usize);
         string
+    }
+
+    pub fn extract_string(&self) -> String {
+        assert_eq!(Kind::String, self.extract_kind());
+        self.extract_raw_string()
     }
 
     pub fn extract_chunk(&self) -> Chunk {
@@ -84,6 +102,11 @@ impl<'a> ChunkReader<'a> {
             Kind::String => {
                 let len = self.extract_u8();
                 Chunk::new(self.chunk.0[offset..self.offset.get() + len as usize].to_vec())
+            }
+            Kind::Struct => {
+                self.offset.set(offset);
+                self.extract_struct();
+                Chunk::new(self.chunk.0[offset..self.offset.get()].to_vec())
             }
             _ => unimplemented!(),
         };

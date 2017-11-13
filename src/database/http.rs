@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 use super::{CommitOptions, ValueAccess};
-use value::{Value, Ref, IntoNoms, FromNoms};
+use value::{Value, Ref, FromNoms, IntoNoms};
 use chunk::Chunk;
 use dataset::Dataset;
 use error::Error;

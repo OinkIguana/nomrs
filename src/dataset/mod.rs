@@ -26,8 +26,15 @@ where M: IntoNoms + FromNoms, V: IntoNoms + FromNoms {
 
     pub fn id(&self) -> &str { &self.dataset }
 
-    pub fn head(&self) -> Option<Commit<M, V>> { unimplemented!() }
-    pub fn head_value(&self) -> Option<V> { self.database.get_value(&self.reference).ok().map(|v| V::from_noms(&v)) }
+    pub fn head(&self) -> Option<Commit<M, V>> {
+        self.database
+            .get_value(&self.reference)
+            .ok()
+            .map(|v| Commit::<M, V>::from_noms(&v))
+    }
+    pub fn head_value(&self) -> Option<V> {
+        self.head().map(|c| c.into_value())
+    }
     pub fn head_ref(&self) -> &Ref { &self.reference }
 }
 
