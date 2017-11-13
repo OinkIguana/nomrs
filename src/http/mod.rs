@@ -6,7 +6,7 @@ use hyper::client::HttpConnector;
 use tokio_core::reactor::Handle;
 use futures::{Future, Stream, future};
 use error::Error;
-use value::{Value, Ref, IntoNoms};
+use value::{Ref, IntoNoms};
 use hash::Hash;
 use std::collections::HashMap;
 use chunk::Chunk;
@@ -25,7 +25,7 @@ const NOMS_VERSION_HEADER: &'static str = "X-Noms-Vers";
 header! { (XNomsVersion, NOMS_VERSION_HEADER) => [String] }
 
 #[derive(Clone)]
-pub struct Client {
+pub(crate) struct Client {
     client: hyper::Client<HttpConnector>,
     database: String,
     version: String,
@@ -57,9 +57,9 @@ impl Client {
         )
     }
 
-    pub fn post_get_refs(&self, root: &Ref, refs: Vec<Ref>) -> Box<Future<Item = HashMap<Ref, Value>, Error = Error>> {
+    pub fn post_get_refs(&self, root: &Ref, refs: Vec<Ref>) -> Box<Future<Item = HashMap<Ref, Chunk>, Error = Error>> {
         let client = self.client.clone();
-        let body = refs.into_noms();
+        let body = refs.into_noms().into_raw();
         Box::new(
             future::result(self.request_with_query(Method::Post, GET_REFS_PATH, &format!("root={}", root.hash().to_string())))
                 .map(|mut req| { req.set_body(body); req })

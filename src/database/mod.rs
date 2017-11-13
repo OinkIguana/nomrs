@@ -56,7 +56,7 @@ pub struct DatabaseBuilder {
 }
 
 impl DatabaseBuilder {
-    pub(super) fn new(noms: Rc<RefCell<InnerNoms>>) -> Self {
+    pub(crate) fn new(noms: Rc<RefCell<InnerNoms>>) -> Self {
         DatabaseBuilder{ noms, protocol: Protocol::Http, database: "".to_string(), version: DEFAULT_VERSION.to_string() }
     }
     /// Creates a new connection to an HTTP database

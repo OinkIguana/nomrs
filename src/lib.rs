@@ -18,7 +18,6 @@ pub mod value;
 pub mod error;
 
 mod http;
-mod codec;
 mod chunk;
 mod hash;
 

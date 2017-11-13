@@ -1,5 +1,6 @@
 use database::Database;
 use value::{Value, Commit, Ref};
+use chunk::Chunk;
 
 pub struct Dataset<'a> {
     dataset: String,

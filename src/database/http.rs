@@ -20,7 +20,7 @@ pub struct Database {
 }
 
 impl Database {
-    pub(super) fn new(noms: Rc<RefCell<InnerNoms>>, database: String, version: String) -> Result<Self, Error> {
+    pub(crate) fn new(noms: Rc<RefCell<InnerNoms>>, database: String, version: String) -> Result<Self, Error> {
         let client = Client::new(database.clone(), version.clone(), &noms.borrow().event_loop.handle());
         let get_root = client.get_root();
         let root = noms.borrow_mut().event_loop.run(get_root)?;
@@ -37,7 +37,7 @@ impl super::Database for Database {
                 .borrow_mut()
                 .event_loop
                 .run(self.client.post_get_refs(&self.root, vec![self.root.clone()]))
-                .map(|v| HashMap::from_noms(&v[&self.root]))
+                .map(|mut v| HashMap::from_noms(&Value(v.remove(&self.root).unwrap())))
         }
     }
     fn dataset<'a>(&'a self, ds: String) -> Dataset<'a> {

@@ -3,6 +3,7 @@
 mod conversion;
 use std::collections::{HashMap, HashSet};
 use hash::{Hash, EMPTY_HASH};
+use chunk::Chunk;
 
 pub enum Type {
     Boolean,
@@ -36,17 +37,26 @@ pub enum Type {
 //     Type(Type),
 // }
 
-pub type Value = Vec<u8>;
-
 pub struct StructType(HashMap<String, Type>);
 
-pub struct Struct(HashMap<String, Value>);
+pub struct Struct(HashMap<String, Chunk>);
+
+#[derive(Debug)]
+pub struct Value(pub(crate) Chunk);
+impl Value {
+    pub fn raw(&self) -> &Vec<u8> {
+        self.0.data()
+    }
+    pub fn into_raw(self) -> Vec<u8> {
+        self.0.into_data()
+    }
+}
 
 #[derive(Debug)]
 pub struct Commit {
-    meta: Value,
-    parents: Value,
-    value: Value,
+    meta: Chunk,
+    parents: Chunk,
+    value: Chunk,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
