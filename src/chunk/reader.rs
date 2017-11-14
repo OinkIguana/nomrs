@@ -5,6 +5,7 @@ use std::mem::transmute;
 use std::collections::{HashMap, HashSet};
 use byteorder::{NetworkEndian, ByteOrder};
 use std::cell::Cell;
+use std::cmp::min;
 
 pub(crate) struct ChunkReader<'a> {
     chunk: &'a Chunk,
@@ -34,10 +35,10 @@ impl<'a> ChunkReader<'a> {
         n
     }
 
-    pub fn extract_u16(&self) -> u32 {
+    pub fn extract_u16(&self) -> u16 {
         let offset = self.offset.get();
-        let n = NetworkEndian::read_u32(&self.chunk.0[offset..offset + 8]);
-        self.offset.set(offset + 8);
+        let n = NetworkEndian::read_u16(&self.chunk.0[offset..offset + 8]);
+        self.offset.set(offset + 2);
         n
     }
 
@@ -94,7 +95,12 @@ impl<'a> ChunkReader<'a> {
                 self.extract_set::<Value>();
                 Chunk::new(self.chunk.0[offset..self.offset.get()].to_vec())
             }
-            _ => unimplemented!(),
+            // TODO: no idea what "value" means when we get it
+            Kind::Value => { Chunk::new(vec![0; 2]) }
+            v => unimplemented!(
+                "Reader for {:?} not yet implemented\nChunk starts with: {:?}",
+                v, self.chunk.0[offset..min(offset + 21, self.chunk.0.len())].to_vec(),
+            ),
         };
         self.offset.set(offset + chunk.0.len());
         chunk

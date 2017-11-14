@@ -36,7 +36,7 @@ impl ChunkWriter {
         self.write_bytes(hash.raw_bytes().to_vec())
     }
 
-    fn write_kind(self, kind: Kind) -> Self {
+    pub fn write_kind(self, kind: Kind) -> Self {
         self.write_u8(kind as u8)
     }
 

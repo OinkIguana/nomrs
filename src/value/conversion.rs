@@ -1,6 +1,6 @@
 use byteorder::{NetworkEndian, ByteOrder};
 use std::collections::{HashMap, HashSet};
-use super::Value;
+use super::{Value, Type};
 use chunk::Chunk;
 
 pub trait IntoNoms {
@@ -72,4 +72,16 @@ impl IntoNoms for String {
             .finish()
             .into_value()
     }
+}
+
+impl IntoNoms for Type {
+    fn into_noms(&self) -> Value {
+        Chunk::writer()
+            .write_kind(self.0)
+            .finish()
+            .into_value()
+    }
+}
+impl FromNoms for Type {
+    fn from_noms(v: &Value) -> Type { Type(v.0.reader().extract_kind()) }
 }

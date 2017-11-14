@@ -10,7 +10,11 @@ pub use self::commit::Commit;
 
 use chunk::Chunk;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+/// A C-Style enum, which must continue to be in the same order as the NomsKind enum in the
+/// official Noms Go package to ensure proper deserialization.
+///
+/// See [noms/go/types/noms_kind.go](https://github.com/attic-labs/noms/go/types/noms_kind.go)
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) enum Kind {
     Boolean,
     Number,
@@ -31,7 +35,7 @@ impl Kind {
     }
 }
 
-pub struct Type(Kind); // TODO: Figure out if this is needed?
+pub struct Type(Kind);
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Value(pub(crate) Chunk);

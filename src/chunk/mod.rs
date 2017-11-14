@@ -10,6 +10,10 @@ pub(crate) use self::reader::ChunkReader;
 pub(crate) use self::writer::ChunkWriter;
 
 /// A chunk of raw bytes from the database
+///
+/// This is an internal representation of data yet to be converted to an actual Rust type.
+/// External users of this crate will be given `Value`s, which are just wrappers around
+/// these `Chunk`s.
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub(crate) struct Chunk(Vec<u8>);
 
