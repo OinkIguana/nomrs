@@ -11,6 +11,7 @@ extern crate crypto;
 extern crate tokio_core;
 extern crate futures;
 extern crate data_encoding;
+extern crate either;
 
 pub mod database;
 pub mod dataset;

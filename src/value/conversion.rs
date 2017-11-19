@@ -1,5 +1,4 @@
 use byteorder::{NetworkEndian, ByteOrder};
-use std::collections::{HashMap, HashSet};
 use super::{Value, Type};
 use chunk::Chunk;
 
@@ -31,32 +30,6 @@ impl<T: IntoNoms> IntoNoms for Vec<T> {
         let mut val = buf.to_vec();
         val.extend(self.iter().flat_map(|v| v.into_noms().into_raw().into_iter()));
         Value(Chunk::new(val))
-    }
-}
-
-impl<K: FromNoms + Eq + ::std::hash::Hash, V: FromNoms> FromNoms for HashMap<K, V> {
-    fn from_noms(v: &Value) -> Self {
-        v.0.reader().extract_map()
-    }
-}
-
-impl<K: IntoNoms + Eq + ::std::hash::Hash, V: IntoNoms> IntoNoms for HashMap<K, V> {
-    fn into_noms(&self) -> Value {
-        Chunk::writer()
-            .write_map(self)
-            .finish()
-            .into_value()
-    }
-}
-
-impl<V: IntoNoms + Eq + ::std::hash::Hash> IntoNoms for HashSet<V> {
-    fn into_noms(&self) -> Value {
-        unimplemented!()
-    }
-}
-impl<V: FromNoms + Eq + ::std::hash::Hash> FromNoms for HashSet<V> {
-    fn from_noms(v: &Value) -> Self {
-        v.0.reader().extract_set()
     }
 }
 

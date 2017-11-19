@@ -1,8 +1,7 @@
 use super::Chunk;
 use hash::Hash;
-use value::{Value, Kind, Ref, IntoNoms};
+use value::{Value, Kind, Ref, FromNoms, IntoNoms, Map};
 use byteorder::{NetworkEndian, ByteOrder};
-use std::collections::HashMap;
 
 
 pub(crate) struct ChunkWriter(Vec<u8>);
@@ -45,15 +44,8 @@ impl ChunkWriter {
             .write_hash(r.hash())
     }
 
-    pub fn write_map<K: IntoNoms + Eq + ::std::hash::Hash, V: IntoNoms>(mut self, map: &HashMap<K, V>) -> Self {
-        self = self.write_kind(Kind::Map)
-            .write_u16(map.len() as u16);
-        for (k, v) in map {
-            self = self
-                .write_value(k.into_noms())
-                .write_value(v.into_noms())
-        }
-        self
+    pub fn write_map<K: FromNoms + IntoNoms + Eq + ::std::hash::Hash, V: IntoNoms + FromNoms>(mut self, map: &Map<K, V>) -> Self {
+        unimplemented!();
     }
 
     pub fn write_value(self, value: Value) -> Self {

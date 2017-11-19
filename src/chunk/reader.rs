@@ -1,10 +1,11 @@
 use super::Chunk;
 use hash::{Hash, BYTE_LEN};
-use value::{Value, Kind, Ref, FromNoms};
+use value::{Value, Kind, Ref, FromNoms, IntoNoms, Map, Set, List, Sequence, MetaTuple, OrderedKey};
 use std::mem::transmute;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use byteorder::{NetworkEndian, ByteOrder};
 use std::cell::Cell;
+use either::Either;
 use std::cmp::min;
 
 pub(crate) struct ChunkReader<'a> {
@@ -35,13 +36,6 @@ impl<'a> ChunkReader<'a> {
         n
     }
 
-    pub fn extract_u16(&self) -> u16 {
-        let offset = self.offset.get();
-        let n = NetworkEndian::read_u16(&self.chunk.0[offset..offset + 8]);
-        self.offset.set(offset + 2);
-        n
-    }
-
     pub fn extract_u32(&self) -> u32 {
         let offset = self.offset.get();
         let n = NetworkEndian::read_u32(&self.chunk.0[offset..offset + 4]);
@@ -51,19 +45,18 @@ impl<'a> ChunkReader<'a> {
 
     pub fn extract_struct(&self) -> (String, HashMap<String, Chunk>) {
         assert_eq!(Kind::Struct, self.extract_kind());
-        let len = self.extract_u8();
-        let name = String::from_utf8(self.extract_raw(len as usize).into_data()).unwrap();
+        let name = self.read_string();
         let prop_count = self.extract_u8() as usize;
         let mut props = HashMap::with_capacity(prop_count);
         for _ in 0..prop_count {
-            let key = self.extract_raw_string();
+            let key = self.read_string();
             let value = self.extract_chunk();
             props.insert(key, value);
         }
         (name, props)
     }
 
-    fn extract_raw_string(&self) -> String {
+    fn read_string(&self) -> String {
         let len = self.extract_u8();
         let offset = self.offset.get();
         let string = String::from_utf8(self.chunk.0[offset..offset + len as usize].to_vec()).unwrap();
@@ -73,7 +66,7 @@ impl<'a> ChunkReader<'a> {
 
     pub fn extract_string(&self) -> String {
         assert_eq!(Kind::String, self.extract_kind());
-        self.extract_raw_string()
+        self.read_string()
     }
 
     pub fn extract_chunk(&self) -> Chunk {
@@ -95,11 +88,24 @@ impl<'a> ChunkReader<'a> {
                 self.extract_set::<Value>();
                 Chunk::new(self.chunk.0[offset..self.offset.get()].to_vec())
             }
+            Kind::Map => {
+                self.offset.set(offset);
+                self.extract_map::<Value, Value>();
+                Chunk::new(self.chunk.0[offset..self.offset.get()].to_vec())
+            }
+            Kind::List => {
+                self.offset.set(offset);
+                self.extract_list::<Value>();
+                Chunk::new(self.chunk.0[offset..self.offset.get()].to_vec())
+            }
             // TODO: no idea what "value" means when we get it
+            //       maybe it's not supposed to actually come alone
             Kind::Value => { Chunk::new(vec![0; 2]) }
             v => unimplemented!(
                 "Reader for {:?} not yet implemented\nChunk starts with: {:?}",
-                v, self.chunk.0[offset..min(offset + 21, self.chunk.0.len())].to_vec(),
+                v,
+                // self.chunk.0[offset..min(offset + 21, self.chunk.0.len())].to_vec(),
+                self.chunk.0[offset..].to_vec(),
             ),
         };
         self.offset.set(offset + chunk.0.len());
@@ -115,26 +121,55 @@ impl<'a> ChunkReader<'a> {
         unsafe{ transmute(self.extract_u8()) }
     }
 
-    pub fn extract_map<K: FromNoms + Eq + ::std::hash::Hash, V: FromNoms>(&self) -> HashMap<K, V> {
-        assert_eq!(Kind::Map, self.extract_kind());
-        let mut map = HashMap::new();
-        let entries = self.extract_u16();
-        for _ in 0..entries {
-            let key = self.extract_chunk();
-            let value = self.extract_chunk();
-            map.insert(K::from_noms(&key.into_value()), V::from_noms(&value.into_value()));
+    fn extract_sequence<T, F: Fn(&Self) -> T>(&self, extract: F) -> Either<Vec<T>, Vec<MetaTuple>> {
+        let level = self.extract_u8();
+        let len = self.extract_u8();
+        let mut seq = if level == 0 {
+            Either::Left(Vec::<T>::with_capacity(len as usize))
+        } else {
+            Either::Right(Vec::<MetaTuple>::with_capacity(len as usize))
+        };
+        for _ in 0..len {
+            match seq.as_mut() {
+                Either::Left(v) => v.push(extract(self)),
+                Either::Right(v) => {
+                    v.push(self.extract_metatuple());
+                }
+            }
         }
-        map
+        seq
     }
 
-    pub fn extract_set<V: FromNoms + ::std::hash::Hash + Eq>(&self) -> HashSet<V> {
-        assert_eq!(Kind::Set, self.extract_kind());
-        let len = self.extract_u16();
-        let mut set = HashSet::with_capacity(len as usize);
-        for _ in 0..len {
-            set.insert(V::from_noms(&self.extract_chunk().into_value()));
+    fn extract_metatuple(&self) -> MetaTuple {
+        println!("{:?}", self.chunk.0[self.offset.get()..].to_vec());
+        let reference = self.extract_ref();
+        let value = self.extract_chunk();
+        // then: v + numleaves
+        // idk how tho...
+        MetaTuple {
+            reference,
+            key: OrderedKey {
+                is_ordered_by_value: false,
+                value: Chunk::new(vec![]).into_value(),
+                hash: Hash::new([0; 20]),
+            },
+            hash: Hash::new([0; 20]),
         }
-        set
+    }
+
+    pub fn extract_map<K: IntoNoms + FromNoms + Eq + ::std::hash::Hash, V: IntoNoms + FromNoms>(&self) -> Map<K, V> {
+        assert_eq!(Kind::Map, self.extract_kind());
+        Map::from_either(self.extract_sequence(|cr| ( K::from_noms(&cr.extract_chunk().into_value()), V::from_noms(&cr.extract_chunk().into_value()))))
+    }
+
+    pub fn extract_set<V: IntoNoms + FromNoms + ::std::hash::Hash + Eq>(&self) -> Set<V> {
+        assert_eq!(Kind::Set, self.extract_kind());
+        Set::from_either(self.extract_sequence(|cr| V::from_noms(&cr.extract_chunk().into_value())))
+    }
+
+    pub fn extract_list<V: IntoNoms + FromNoms>(&self) -> List<V> {
+        assert_eq!(Kind::List, self.extract_kind());
+        List::from_either(self.extract_sequence(|cr| V::from_noms(&cr.extract_chunk().into_value())))
     }
 
     pub fn extract_raw(&self, len: usize) -> Chunk {
