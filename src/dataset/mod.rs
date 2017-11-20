@@ -28,9 +28,9 @@ where M: IntoNoms + FromNoms, V: IntoNoms + FromNoms {
 
     pub fn head(&self) -> Option<Commit<M, V>> {
         self.database
-            .get_value(&self.reference)
-            .ok()
+            .get_value(self.reference.hash())
             .map(|v| Commit::<M, V>::from_noms(&v))
+            .ok()
     }
     pub fn head_value(&self) -> Option<V> {
         self.head().map(|c| c.into_value())

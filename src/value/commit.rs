@@ -25,7 +25,7 @@ where M: IntoNoms + FromNoms, V: IntoNoms + FromNoms {
 impl<M, V> FromNoms for Commit<M, V>
 where M: IntoNoms + FromNoms, V: IntoNoms + FromNoms {
     fn from_noms(v: &Value) -> Self {
-        let (name, mut props) = v.0.reader().extract_struct();
+        let (name, mut props) = v.0.reader().read_struct();
         assert_eq!("Commit", name);
         Self {
             meta: M::from_noms(&Value(props.remove("meta").unwrap())),

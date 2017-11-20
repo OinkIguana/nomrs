@@ -1,16 +1,20 @@
 use super::Chunk;
 use hash::{Hash, BYTE_LEN};
-use value::{Value, Kind, Ref, FromNoms, IntoNoms, Map, Set, List, Sequence, MetaTuple, OrderedKey};
+use value::{Value, Type, Kind, Ref, FromNoms, IntoNoms, Map, Set, List, Sequence, MetaTuple, OrderedKey};
 use std::mem::transmute;
 use std::collections::HashMap;
 use byteorder::{NetworkEndian, ByteOrder};
 use std::cell::Cell;
 use either::Either;
-use std::cmp::min;
+// use std::cmp::min;
 
 pub(crate) struct ChunkReader<'a> {
     chunk: &'a Chunk,
     offset: Cell<usize>,
+}
+
+fn split_varint(i: u8) -> (bool, u64) {
+    (i & 0b10000000 == 1, (i & 0b01111111) as u64)
 }
 
 impl<'a> ChunkReader<'a> {
@@ -21,7 +25,44 @@ impl<'a> ChunkReader<'a> {
         }
     }
 
-    pub fn extract_hash(&self) -> Hash {
+    pub fn read_kind(&self) -> Kind {
+        unsafe{ transmute(self.read_u8()) }
+    }
+
+    pub fn read_type(&self) -> Type {
+        let kind = self.read_kind();
+        if kind.is_primitive() {
+            Type::primitive(kind)
+        } else if kind == Kind::Struct {
+            let name = self.read_utf8();
+            let count = self.read_varint() as usize;
+            let mut props = Vec::with_capacity(count);
+            let mut types = Vec::with_capacity(count);
+            let mut optional = Vec::with_capacity(count);
+            for _ in 0..count {
+                props.push(self.read_utf8());
+            }
+            for _ in 0..count {
+                types.push(self.read_type());
+            }
+            for _ in 0..count {
+                optional.push(self.read_u8() == 1);
+            }
+            Type::structure(name, props, types, optional)
+        } else if kind == Kind::Union {
+            let count = self.read_varint() as usize;
+            let mut types = Vec::with_capacity(count);
+            for _ in 0..count {
+                types.push(self.read_type());
+            }
+            Type::compound(kind, types)
+        } else {
+            let types = vec![self.read_type()];
+            Type::compound(kind, types)
+        }
+    }
+
+    pub fn read_hash(&self) -> Hash {
         let mut bytes = [0; BYTE_LEN];
         let offset = self.offset.get();
         bytes.copy_from_slice(&self.chunk.0[offset..offset + BYTE_LEN]);
@@ -29,78 +70,83 @@ impl<'a> ChunkReader<'a> {
         Hash::new(bytes)
     }
 
-    pub fn extract_u8(&self) -> u8 {
+    pub fn read_u8(&self) -> u8 {
         let offset = self.offset.get();
         let n = self.chunk.0[offset];
         self.offset.set(offset + 1);
         n
     }
 
-    pub fn extract_u32(&self) -> u32 {
-        let offset = self.offset.get();
-        let n = NetworkEndian::read_u32(&self.chunk.0[offset..offset + 4]);
-        self.offset.set(offset + 4);
-        n
+    // only handles unsigned varints for now
+    fn read_varint(&self) -> u64 {
+        let (msb, bits) = split_varint(self.read_u8());
+        if msb {
+            bits | (self.read_varint() << 7)
+        } else {
+            bits
+        }
     }
 
-    pub fn extract_struct(&self) -> (String, HashMap<String, Chunk>) {
-        assert_eq!(Kind::Struct, self.extract_kind());
+    pub fn read_struct(&self) -> (String, HashMap<String, Chunk>) {
+        assert_eq!(Kind::Struct, self.read_kind());
         let name = self.read_string();
-        let prop_count = self.extract_u8() as usize;
+        let prop_count = self.read_u8() as usize;
         let mut props = HashMap::with_capacity(prop_count);
         for _ in 0..prop_count {
             let key = self.read_string();
-            let value = self.extract_chunk();
+            let value = self.read_chunk();
             props.insert(key, value);
         }
         (name, props)
     }
 
-    fn read_string(&self) -> String {
-        let len = self.extract_u8();
+    fn read_utf8(&self) -> String {
+        let len = self.read_varint();
         let offset = self.offset.get();
         let string = String::from_utf8(self.chunk.0[offset..offset + len as usize].to_vec()).unwrap();
         self.offset.set(offset + len as usize);
         string
     }
 
-    pub fn extract_string(&self) -> String {
-        assert_eq!(Kind::String, self.extract_kind());
-        self.read_string()
+    pub fn read_string(&self) -> String {
+        assert_eq!(Kind::String, self.read_kind());
+        self.read_utf8()
     }
 
-    pub fn extract_chunk(&self) -> Chunk {
+    pub fn read_chunk(&self) -> Chunk {
         let offset = self.offset.get();
-        let kind = self.extract_kind();
+        let kind = self.read_kind();
         let chunk = match kind {
-            Kind::Ref => Chunk::new(self.chunk.0[offset..self.offset.get() + BYTE_LEN].to_vec()),
+            Kind::Ref => {
+                self.offset.set(offset);
+                self.read_ref();
+                Chunk::new(self.chunk.0[offset..self.offset.get()].to_vec())
+            }
             Kind::String => {
-                let len = self.extract_u8();
+                let len = self.read_varint();
                 Chunk::new(self.chunk.0[offset..self.offset.get() + len as usize].to_vec())
             }
             Kind::Struct => {
                 self.offset.set(offset);
-                self.extract_struct();
+                self.read_struct();
                 Chunk::new(self.chunk.0[offset..self.offset.get()].to_vec())
             }
             Kind::Set => {
                 self.offset.set(offset);
-                self.extract_set::<Value>();
+                self.read_set::<Value>();
                 Chunk::new(self.chunk.0[offset..self.offset.get()].to_vec())
             }
             Kind::Map => {
                 self.offset.set(offset);
-                self.extract_map::<Value, Value>();
+                self.read_map::<Value, Value>();
                 Chunk::new(self.chunk.0[offset..self.offset.get()].to_vec())
             }
             Kind::List => {
                 self.offset.set(offset);
-                self.extract_list::<Value>();
+                self.read_list::<Value>();
                 Chunk::new(self.chunk.0[offset..self.offset.get()].to_vec())
             }
-            // TODO: no idea what "value" means when we get it
-            //       maybe it's not supposed to actually come alone
-            Kind::Value => { Chunk::new(vec![0; 2]) }
+            Kind::Value => { Chunk::new(vec![4]) }
             v => unimplemented!(
                 "Reader for {:?} not yet implemented\nChunk starts with: {:?}",
                 v,
@@ -112,18 +158,13 @@ impl<'a> ChunkReader<'a> {
         chunk
     }
 
-    pub fn extract_ref(&self) -> Ref {
-        assert_eq!(Kind::Ref, self.extract_kind());
-        Ref::new(self.extract_hash())
+    pub fn read_ref(&self) -> Ref {
+        Ref::new(self.read_hash(), self.read_type(), self.read_varint())
     }
 
-    pub fn extract_kind(&self) -> Kind {
-        unsafe{ transmute(self.extract_u8()) }
-    }
-
-    fn extract_sequence<T, F: Fn(&Self) -> T>(&self, extract: F) -> Either<Vec<T>, Vec<MetaTuple>> {
-        let level = self.extract_u8();
-        let len = self.extract_u8();
+    fn read_sequence<T, F: Fn(&Self) -> T>(&self, extract: F) -> Either<Vec<T>, Vec<MetaTuple>> {
+        let level = self.read_varint();
+        let len = self.read_varint();
         let mut seq = if level == 0 {
             Either::Left(Vec::<T>::with_capacity(len as usize))
         } else {
@@ -133,53 +174,74 @@ impl<'a> ChunkReader<'a> {
             match seq.as_mut() {
                 Either::Left(v) => v.push(extract(self)),
                 Either::Right(v) => {
-                    v.push(self.extract_metatuple());
+                    v.push(self.read_metatuple());
                 }
             }
         }
         seq
     }
 
-    fn extract_metatuple(&self) -> MetaTuple {
-        println!("{:?}", self.chunk.0[self.offset.get()..].to_vec());
-        let reference = self.extract_ref();
-        let value = self.extract_chunk();
-        // then: v + numleaves
-        // idk how tho...
-        MetaTuple {
-            reference,
-            key: OrderedKey {
+    fn read_ordered_key(&self) -> OrderedKey {
+        let offset = self.offset.get();
+        let kind = self.read_kind();
+        if kind == Kind::Hash {
+            // TODO: make constructors for this instead of just making them
+            OrderedKey {
                 is_ordered_by_value: false,
-                value: Chunk::new(vec![]).into_value(),
-                hash: Hash::new([0; 20]),
-            },
-            hash: Hash::new([0; 20]),
+                value: None,
+                hash: Some(self.read_hash()),
+            }
+        } else {
+            self.offset.set(offset);
+            OrderedKey {
+                is_ordered_by_value: true,
+                value: Some(self.read_chunk().into_value()),
+                hash: None,
+            }
         }
     }
 
-    pub fn extract_map<K: IntoNoms + FromNoms + Eq + ::std::hash::Hash, V: IntoNoms + FromNoms>(&self) -> Map<K, V> {
-        assert_eq!(Kind::Map, self.extract_kind());
-        Map::from_either(self.extract_sequence(|cr| ( K::from_noms(&cr.extract_chunk().into_value()), V::from_noms(&cr.extract_chunk().into_value()))))
+    fn read_metatuple(&self) -> MetaTuple {
+        let reference = self.read_ref();
+        let key = self.read_ordered_key();
+        let num_leaves = self.read_varint();
+        MetaTuple {
+            reference,
+            key,
+            num_leaves,
+        }
     }
 
-    pub fn extract_set<V: IntoNoms + FromNoms + ::std::hash::Hash + Eq>(&self) -> Set<V> {
-        assert_eq!(Kind::Set, self.extract_kind());
-        Set::from_either(self.extract_sequence(|cr| V::from_noms(&cr.extract_chunk().into_value())))
+    pub fn read_map<K: IntoNoms + FromNoms + Eq + ::std::hash::Hash, V: IntoNoms + FromNoms>(&self) -> Map<K, V> {
+        assert_eq!(Kind::Map, self.read_kind());
+        Map::from_either(self.read_sequence(|cr| ( K::from_noms(&cr.read_chunk().into_value()), V::from_noms(&cr.read_chunk().into_value()))))
     }
 
-    pub fn extract_list<V: IntoNoms + FromNoms>(&self) -> List<V> {
-        assert_eq!(Kind::List, self.extract_kind());
-        List::from_either(self.extract_sequence(|cr| V::from_noms(&cr.extract_chunk().into_value())))
+    pub fn read_set<V: IntoNoms + FromNoms + ::std::hash::Hash + Eq>(&self) -> Set<V> {
+        assert_eq!(Kind::Set, self.read_kind());
+        Set::from_either(self.read_sequence(|cr| V::from_noms(&cr.read_chunk().into_value())))
     }
 
-    pub fn extract_raw(&self, len: usize) -> Chunk {
-        let offset = self.offset.get();
-        let value = self.chunk.0[offset..offset + len].to_vec();
-        self.offset.set(offset + len);
-        Chunk(value)
+    pub fn read_list<V: IntoNoms + FromNoms>(&self) -> List<V> {
+        assert_eq!(Kind::List, self.read_kind());
+        List::from_either(self.read_sequence(|cr| V::from_noms(&cr.read_chunk().into_value())))
     }
 
     pub fn empty(&self) -> bool {
         self.offset.get() >= self.chunk.0.len()
+    }
+
+    pub fn read_u32(&self) -> u32 {
+        let offset = self.offset.get();
+        let n = NetworkEndian::read_u32(&self.chunk.0[offset..offset + 4]);
+        self.offset.set(offset + 4);
+        n
+    }
+
+    pub fn read_raw(&self, len: usize) -> Chunk {
+        let offset = self.offset.get();
+        let value = self.chunk.0[offset..offset + len].to_vec();
+        self.offset.set(offset + len);
+        Chunk(value)
     }
 }

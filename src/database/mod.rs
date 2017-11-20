@@ -7,6 +7,7 @@ use std::rc::Rc;
 use dataset::Dataset;
 use value::{Value, Ref, Map};
 use error::Error;
+use hash::Hash;
 use InnerNoms;
 
 const DEFAULT_VERSION: &'static str = "7.18";
@@ -47,7 +48,7 @@ pub trait Database {
 }
 
 pub(crate) trait ValueAccess: Database {
-    fn get_value(&self, &Ref) -> Result<Value, Error>;
+    fn get_value(&self, Hash) -> Result<Value, Error>;
 }
 
 /// Used to construct a new connection to the database

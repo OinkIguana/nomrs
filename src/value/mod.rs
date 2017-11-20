@@ -31,6 +31,7 @@ pub(crate) enum Kind {
     Set,
     Struct,
     Cycle,
+    Type,
     Union,
     Hash, // internal... apparently
 }
@@ -38,9 +39,58 @@ impl Kind {
     pub fn variants() -> usize {
         Kind::Union as usize + 1
     }
+
+    pub fn is_primitive(self) -> bool {
+        use self::Kind::*;
+        match self {
+            Boolean | Number | String | Blob | Value | Type => true,
+            _ => false
+        }
+    }
 }
 
-pub struct Type(Kind);
+#[derive(Clone, Debug)]
+enum TypeDesc {
+    Primitive,
+    Compound(Vec<Type>),
+    Struct {
+        name: String,
+        keys: Vec<String>,
+        types: Vec<Type>,
+        optional: Vec<bool>,
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Type {
+    kind: Kind,
+    desc: TypeDesc,
+}
+
+impl Type {
+    pub(crate) fn primitive(kind: Kind) -> Self {
+        Type {
+            kind,
+            desc: TypeDesc::Primitive,
+        }
+    }
+
+    pub(crate) fn compound(kind: Kind, types: Vec<Type>) -> Self {
+        Type {
+            kind,
+            desc: TypeDesc::Compound(types),
+        }
+    }
+
+    pub(crate) fn structure(name: String, keys: Vec<String>, types: Vec<Type>, optional: Vec<bool>) -> Self {
+        assert_eq!(keys.len(), types.len());
+        assert_eq!(keys.len(), optional.len());
+        Type {
+            kind: Kind::Struct,
+            desc: TypeDesc::Struct { name, keys, types, optional },
+        }
+    }
+}
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Value(pub(crate) Chunk);

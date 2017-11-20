@@ -1,5 +1,5 @@
 //! Defines some errors that can be returned
-use value::Ref;
+use hash::Hash;
 
 #[derive(Debug)]
 pub enum Error {
@@ -7,7 +7,7 @@ pub enum Error {
     Http(::hyper::StatusCode),
     Hash(String),
     NoDataset(String),
-    NoValueForRef(Ref),
+    NoValueForRef(Hash),
 }
 
 impl From<::hyper::Error> for Error {

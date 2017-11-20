@@ -1,4 +1,4 @@
-use super::{Value, IntoNoms, FromNoms};
+use super::{Type, Value, IntoNoms, FromNoms};
 use hash::{Hash, EMPTY_HASH};
 use chunk::Chunk;
 use std::fmt::{Display, Formatter};
@@ -8,11 +8,13 @@ use std;
 #[derive(Clone, Debug)]
 pub struct Ref {
     hash: Hash,
+    value_type: Type,
+    height: u64,
 }
 
 impl Ref {
-    pub fn new(hash: Hash) -> Self {
-        Self{ hash }
+    pub fn new(hash: Hash, value_type: Type, height: u64) -> Self {
+        Self{ hash, value_type, height }
     }
     pub fn is_empty(&self) -> bool {
         self.hash == EMPTY_HASH
@@ -52,6 +54,6 @@ impl IntoNoms for Ref {
 
 impl FromNoms for Ref {
     fn from_noms(v: &Value) -> Self {
-        v.0.reader().extract_ref()
+        v.0.reader().read_ref()
     }
 }

@@ -1,6 +1,6 @@
 use super::Chunk;
 use hash::Hash;
-use value::{Value, Kind, Ref, FromNoms, IntoNoms, Map};
+use value::{Value, Type, Kind, Ref, FromNoms, IntoNoms, Map};
 use byteorder::{NetworkEndian, ByteOrder};
 
 
@@ -37,6 +37,11 @@ impl ChunkWriter {
 
     pub fn write_kind(self, kind: Kind) -> Self {
         self.write_u8(kind as u8)
+    }
+
+    pub fn write_type(self, t: Type) -> Self {
+        unimplemented!();
+        // self.write_kind(t.kind)
     }
 
     pub fn write_ref(self, r: &Ref) -> Self {

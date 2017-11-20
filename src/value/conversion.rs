@@ -35,7 +35,7 @@ impl<T: IntoNoms> IntoNoms for Vec<T> {
 
 impl FromNoms for String {
     fn from_noms(v: &Value) -> Self {
-        v.0.reader().extract_string()
+        v.0.reader().read_string()
     }
 }
 impl IntoNoms for String {
@@ -50,11 +50,13 @@ impl IntoNoms for String {
 impl IntoNoms for Type {
     fn into_noms(&self) -> Value {
         Chunk::writer()
-            .write_kind(self.0)
+            .write_type(self.clone())
             .finish()
             .into_value()
     }
 }
 impl FromNoms for Type {
-    fn from_noms(v: &Value) -> Type { Type(v.0.reader().extract_kind()) }
+    fn from_noms(v: &Value) -> Type {
+        v.0.reader().read_type()
+    }
 }

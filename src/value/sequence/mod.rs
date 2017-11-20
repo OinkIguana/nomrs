@@ -18,15 +18,15 @@ pub(crate) trait Sequence<V> {
 pub(crate) struct MetaTuple {
     pub reference: Ref,
     pub key: OrderedKey,
-    pub hash: ::hash::Hash,
+    pub num_leaves: u64,
 }
 
 // Somethingsomething key in prolly tree level. See noms source again (still meta_sequence.go)
 #[derive(Clone, Debug)]
 pub(crate) struct OrderedKey {
     pub is_ordered_by_value: bool,
-    pub value: Value,
-    pub hash: ::hash::Hash,
+    pub value: Option<Value>,
+    pub hash: Option<::hash::Hash>,
 }
 
 #[derive(Clone, Debug)]
@@ -63,7 +63,7 @@ impl<K: Eq + Hash + FromNoms + IntoNoms, V: FromNoms + IntoNoms> Sequence<(K, V)
 }
 impl<K: IntoNoms + FromNoms + Eq + ::std::hash::Hash, V: IntoNoms + FromNoms> FromNoms for Map<K, V> {
     fn from_noms(v: &Value) -> Self {
-        v.0.reader().extract_map()
+        v.0.reader().read_map()
     }
 }
 impl<K: IntoNoms + FromNoms + Eq + ::std::hash::Hash, V: IntoNoms + FromNoms> IntoNoms for Map<K, V> {
@@ -92,7 +92,7 @@ impl<V: FromNoms + IntoNoms + Hash + Eq> IntoNoms for Set<V> {
 }
 impl<V: FromNoms + IntoNoms + Hash + Eq> FromNoms for Set<V> {
     fn from_noms(v: &Value) -> Self {
-        v.0.reader().extract_set()
+        v.0.reader().read_set()
     }
 }
 

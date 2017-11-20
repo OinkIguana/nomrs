@@ -37,6 +37,10 @@ impl Hash {
         assert_eq!(BYTE_LEN, len);
         Ok(Hash(hash))
     }
+
+    pub fn is_empty(&self) -> bool {
+        *self == EMPTY_HASH
+    }
 }
 impl ::std::fmt::Display for Hash {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {

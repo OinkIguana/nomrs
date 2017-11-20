@@ -9,6 +9,7 @@ use chunk::Chunk;
 use dataset::Dataset;
 use error::Error;
 use http::Client;
+use hash::Hash;
 use InnerNoms;
 
 #[derive(Clone)]
@@ -16,9 +17,9 @@ pub struct Database {
     database: String,
     version: String,
     client: Client,
-    root: Ref,
+    root: Hash,
     noms: Rc<RefCell<InnerNoms>>,
-    cache: RefCell<HashMap<Ref, Chunk>>,
+    cache: RefCell<HashMap<Hash, Chunk>>,
 }
 
 impl Database {
@@ -31,8 +32,8 @@ impl Database {
 }
 
 impl Database {
-    fn add_to_cache<I: IntoNoms>(&self, r: Ref, v: I) -> I {
-        self.cache.borrow_mut().insert(r, v.into_noms().0);
+    fn add_to_cache<I: IntoNoms>(&self, h: Hash, v: I) -> I {
+        self.cache.borrow_mut().insert(h, v.into_noms().0);
         v
     }
 }
@@ -42,7 +43,7 @@ impl super::Database for Database {
         if self.root.is_empty() {
             Ok(Map::new())
         } else {
-            self.get_value(&self.root)
+            self.get_value(self.root)
                 .map(|v| Map::from_noms(&v))
         }
     }
@@ -62,15 +63,15 @@ impl super::Database for Database {
 }
 
 impl super::ValueAccess for Database {
-    fn get_value(&self, r: &Ref) -> Result<Value, Error> {
-        let cached = self.cache.borrow().get(r).cloned();
+    fn get_value(&self, r: Hash) -> Result<Value, Error> {
+        let cached = self.cache.borrow().get(&r).cloned();
         match cached {
             Some(chunk) => Ok(Value(chunk)),
             None =>
                 self.noms.borrow_mut()
                     .event_loop
-                    .run(self.client.post_get_refs(&self.root, vec![r.clone()]))
-                    .and_then(|mut v| v.remove(r).ok_or(Error::NoValueForRef(r.clone())))
+                    .run(self.client.post_get_refs(self.root, vec![r]))
+                    .and_then(|mut v| v.remove(&r).ok_or(Error::NoValueForRef(r)))
                     .map(|v| self.add_to_cache(r.clone(), v))
                     .map(|c| c.into_value())
         }
