@@ -1,6 +1,8 @@
 use byteorder::{NetworkEndian, ByteOrder};
 use super::{Value, Type};
 use chunk::Chunk;
+use std::hash::Hash;
+use std::collections::{HashMap, HashSet};
 
 pub trait IntoNoms: ::std::fmt::Debug {
     fn into_noms(&self) -> Value;
@@ -58,5 +60,21 @@ impl IntoNoms for Type {
 impl FromNoms for Type {
     fn from_noms(v: &Value) -> Type {
         v.0.reader().read_type()
+    }
+}
+
+impl<K, V> IntoNoms for HashMap<K, V>
+where   K: IntoNoms + FromNoms + Hash + Eq,
+        V: IntoNoms + FromNoms {
+    fn into_noms(&self) -> Value {
+        unimplemented!();
+    }
+}
+
+impl<K, V> FromNoms for HashMap<K, V>
+where   K: IntoNoms + FromNoms + Hash + Eq,
+        V: IntoNoms + FromNoms {
+    fn from_noms(v: &Value) -> Self {
+        unimplemented!();
     }
 }

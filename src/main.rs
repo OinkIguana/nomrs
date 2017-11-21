@@ -3,6 +3,7 @@
 
 extern crate nomrs;
 
+use std::collections::HashMap;
 use nomrs::Noms;
 
 fn main() {
@@ -12,5 +13,5 @@ fn main() {
         .noms_version("7.18")
         .build().unwrap();
     println!("{:?}", db.datasets().unwrap());
-    println!("{:?}", db.dataset("test").unwrap().head_value());
+    println!("{:?}", HashMap::from_noms(db.dataset("test").unwrap().head_value()));
 }
