@@ -77,7 +77,7 @@ impl<'a> ChunkReader<'a> {
         n
     }
 
-    // only handles unsigned varints for now
+    // TODO: make this handle negative varints
     fn read_varint(&self) -> u64 {
         let (msb, bits) = split_varint(self.read_u8());
         if msb {
@@ -92,6 +92,7 @@ impl<'a> ChunkReader<'a> {
         self.read_u8() == 1
     }
 
+    // TODO: make this handle more arbitrary numbers
     pub fn read_number(&self) -> u64 {
         assert_eq!(Kind::Number, self.read_kind());
         let (i, exp) = (self.read_varint(), self.read_varint());

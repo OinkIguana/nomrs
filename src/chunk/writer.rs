@@ -6,6 +6,7 @@ use byteorder::{NetworkEndian, ByteOrder};
 
 pub(crate) struct ChunkWriter(Vec<u8>);
 
+// TODO: most of this is wrong, and just exists as a stub for future
 impl ChunkWriter {
     pub(super) fn new() -> Self {
         ChunkWriter(vec![])
