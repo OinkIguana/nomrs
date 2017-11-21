@@ -2,10 +2,10 @@ use byteorder::{NetworkEndian, ByteOrder};
 use super::{Value, Type};
 use chunk::Chunk;
 
-pub trait IntoNoms {
+pub trait IntoNoms: ::std::fmt::Debug {
     fn into_noms(&self) -> Value;
 }
-pub trait FromNoms {
+pub trait FromNoms: ::std::fmt::Debug {
     fn from_noms(&Value) -> Self;
 }
 

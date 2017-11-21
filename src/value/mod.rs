@@ -8,9 +8,9 @@ mod sequence;
 pub use self::reference::Ref;
 pub use self::conversion::{IntoNoms, FromNoms};
 pub use self::commit::Commit;
-pub use self::sequence::{Map, Set, List};
+pub use self::sequence::{NomsMap, NomsSet, NomsList};
 
-pub(crate) use self::sequence::{Sequence, MetaTuple, OrderedKey};
+pub(crate) use self::sequence::{Sequence, MetaTuple, OrderedKey, Map, Set, List};
 
 use chunk::Chunk;
 

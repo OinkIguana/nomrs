@@ -5,7 +5,7 @@ mod http;
 use std::cell::RefCell;
 use std::rc::Rc;
 use dataset::Dataset;
-use value::{Value, Ref, Map};
+use value::{Value, Ref, NomsMap};
 use error::Error;
 use hash::Hash;
 use InnerNoms;
@@ -33,7 +33,7 @@ pub struct CommitOptions {
 pub trait Database {
     /// Returns the root of the database, which is a Map<String, Ref<Commit>>, where the key is the
     /// ID of the dataset.
-    fn datasets(&self) -> Result<Map<String, Ref>, Error>;
+    fn datasets(&self) -> Result<NomsMap<String, Ref>, Error>;
     /// Gets the Dataset corresponding to the given ds dataset ID from the datasets map.
     fn dataset(&self, ds: &str) -> Result<Dataset, Error>;
     fn rebase(&self);

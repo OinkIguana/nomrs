@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 use super::{CommitOptions, ValueAccess};
-use value::{Value, Ref, FromNoms, IntoNoms, Map};
+use value::{Value, Ref, FromNoms, IntoNoms, NomsMap, NomsSet};
 use chunk::Chunk;
 use dataset::Dataset;
 use error::Error;
@@ -39,12 +39,12 @@ impl Database {
 }
 
 impl super::Database for Database {
-    fn datasets(&self) -> Result<Map<String, Ref>, Error> {
+    fn datasets(&self) -> Result<NomsMap<String, Ref>, Error> {
         if self.root.is_empty() {
-            Ok(Map::new())
+            Ok(NomsMap::new())
         } else {
             self.get_value(self.root)
-                .map(|v| Map::from_noms(&v))
+                .map(|v| NomsMap::from_noms(&v))
         }
     }
     fn dataset<'a>(&'a self, ds: &str) -> Result<Dataset<'a>, Error> {
