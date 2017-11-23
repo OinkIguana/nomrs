@@ -93,10 +93,9 @@ impl<'a> ChunkReader<'a> {
     }
 
     // TODO: make this handle more arbitrary numbers
-    pub fn read_number(&self) -> u64 {
+    pub fn read_number(&self) -> (u64, u64) {
         assert_eq!(Kind::Number, self.read_kind());
-        let (i, exp) = (self.read_varint(), self.read_varint());
-        i * (2u64.pow(exp as u32))
+        (self.read_varint(), self.read_varint())
     }
 
     pub fn read_struct(&self) -> (String, HashMap<String, Chunk>) {

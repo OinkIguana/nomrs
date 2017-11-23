@@ -48,7 +48,7 @@ impl NomsValue {
 
 impl Value {
     pub fn new(data: Vec<u8>) -> Value {
-        unimplemented!();
+        Value::Value(data)
     }
 
     pub fn export(self) -> NomsValue {
