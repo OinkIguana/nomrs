@@ -5,76 +5,44 @@ use std::hash::Hash;
 use std::collections::{HashMap, HashSet};
 
 pub trait IntoNoms: ::std::fmt::Debug {
-    fn into_noms(&self) -> Value;
+    fn into_noms(&self) -> Vec<u8>;
 }
 pub trait FromNoms: ::std::fmt::Debug {
-    fn from_noms(&Value) -> Self;
+    fn from_noms(&Vec<u8>) -> Self;
 }
 
 impl IntoNoms for Chunk {
-    fn into_noms(&self) -> Value { self.clone().into_value() }
+    fn into_noms(&self) -> Vec<u8> { self.data().clone() }
 }
 impl FromNoms for Chunk {
-    fn from_noms(v: &Value) -> Chunk { v.0.clone() }
+    fn from_noms(v: &Vec<u8>) -> Chunk { Chunk::new(v.clone()) }
 }
 
 impl IntoNoms for Value {
-    fn into_noms(&self) -> Value { self.clone() }
+    fn into_noms(&self) -> Vec<u8> { unimplemented!() }
 }
 impl FromNoms for Value {
-    fn from_noms(v: &Value) -> Self { v.clone() }
+    fn from_noms(v: &Vec<u8>) -> Self { Value::Value(v.clone()) }
 }
 
-impl<T: IntoNoms> IntoNoms for Vec<T> {
-    fn into_noms(&self) -> Value {
-        let mut buf = [0; 4];
-        NetworkEndian::write_u32(&mut buf, self.len() as u32);
-        let mut val = buf.to_vec();
-        val.extend(self.iter().flat_map(|v| v.into_noms().into_raw().into_iter()));
-        Value(Chunk::new(val))
-    }
-}
-
-impl FromNoms for String {
-    fn from_noms(v: &Value) -> Self {
-        v.0.reader().read_string()
-    }
-}
 impl IntoNoms for String {
-    fn into_noms(&self) -> Value {
-        Chunk::writer()
-            .write_string(self)
-            .finish()
-            .into_value()
+    fn into_noms(&self) -> Vec<u8> {
+        Value::String(self.clone()).into_noms()
+    }
+}
+impl FromNoms for String {
+    fn from_noms(v: &Vec<u8>) -> Self {
+        Value::from_noms(v).to_string().unwrap()
     }
 }
 
 impl IntoNoms for Type {
-    fn into_noms(&self) -> Value {
-        Chunk::writer()
-            .write_type(self.clone())
-            .finish()
-            .into_value()
+    fn into_noms(&self) -> Vec<u8> {
+        Value::Type(self.clone()).into_noms()
     }
 }
 impl FromNoms for Type {
-    fn from_noms(v: &Value) -> Type {
-        v.0.reader().read_type()
-    }
-}
-
-impl<K, V> IntoNoms for HashMap<K, V>
-where   K: IntoNoms + FromNoms + Hash + Eq,
-        V: IntoNoms + FromNoms {
-    fn into_noms(&self) -> Value {
-        unimplemented!();
-    }
-}
-
-impl<K, V> FromNoms for HashMap<K, V>
-where   K: IntoNoms + FromNoms + Hash + Eq,
-        V: IntoNoms + FromNoms {
-    fn from_noms(v: &Value) -> Self {
-        unimplemented!();
+    fn from_noms(v: &Vec<u8>) -> Type {
+        Value::from_noms(v).to_type().unwrap()
     }
 }

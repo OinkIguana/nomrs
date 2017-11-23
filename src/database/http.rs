@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 use super::{CommitOptions, ValueAccess};
-use value::{Value, Ref, FromNoms, IntoNoms, NomsMap, NomsSet};
+use value::{NomsValue, Value, Ref, FromNoms, IntoNoms, NomsMap, NomsSet};
 use chunk::Chunk;
 use dataset::Dataset;
 use error::Error;
@@ -19,7 +19,7 @@ pub struct Database {
     client: Client,
     root: Hash,
     noms: Rc<RefCell<InnerNoms>>,
-    cache: RefCell<HashMap<Hash, Chunk>>,
+    cache: RefCell<HashMap<Hash, Vec<u8>>>,
 }
 
 impl Database {
@@ -33,7 +33,7 @@ impl Database {
 
 impl Database {
     fn add_to_cache<I: IntoNoms>(&self, h: Hash, v: I) -> I {
-        self.cache.borrow_mut().insert(h, v.into_noms().0);
+        self.cache.borrow_mut().insert(h, v.into_noms());
         v
     }
 }
@@ -44,7 +44,7 @@ impl super::Database for Database {
             Ok(NomsMap::new())
         } else {
             self.get_value(self.root)
-                .map(|v| NomsMap::from_noms(&v))
+                .and_then(|v| v.to_map().ok_or(Error::ConversionError("Value is not a map".to_string())))
         }
     }
     fn dataset<'a>(&'a self, ds: &str) -> Result<Dataset<'a>, Error> {
@@ -55,8 +55,8 @@ impl super::Database for Database {
         Ok(Dataset::new(self, ds, r))
     }
     fn rebase(&self) { unimplemented!() }
-    fn commit(&self, ds: Dataset, v: Value, o: CommitOptions) -> Result<Dataset, Error> { unimplemented!() }
-    fn commit_value(&self, ds: Dataset, v: Value) -> Result<Dataset, Error> { unimplemented!() }
+    fn commit(&self, ds: Dataset, v: NomsValue, o: CommitOptions) -> Result<Dataset, Error> { unimplemented!() }
+    fn commit_value(&self, ds: Dataset, v: NomsValue) -> Result<Dataset, Error> { unimplemented!() }
     fn delete(&self, ds: Dataset) -> Result<Dataset, Error> { unimplemented!() }
     fn set_head(&self, ds: Dataset, head: Ref) -> Result<Dataset, Error> { unimplemented!() }
     fn fast_forward(&self, ds: Dataset, head: Ref) -> Result<Dataset, Error> { unimplemented!() }
@@ -66,7 +66,7 @@ impl super::ValueAccess for Database {
     fn get_value(&self, r: Hash) -> Result<Value, Error> {
         let cached = self.cache.borrow().get(&r).cloned();
         match cached {
-            Some(chunk) => Ok(Value(chunk)),
+            Some(ref data) => Ok(Value::from_noms(data)),
             None =>
                 self.noms.borrow_mut()
                     .event_loop

@@ -13,5 +13,5 @@ fn main() {
         .noms_version("7.18")
         .build().unwrap();
     println!("{:?}", db.datasets().unwrap());
-    println!("{:?}", HashMap::from_noms(db.dataset("test").unwrap().head_value()));
+    println!("{:?}", db.dataset("test").unwrap().head_value());
 }

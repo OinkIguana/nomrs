@@ -5,7 +5,7 @@ mod http;
 use std::cell::RefCell;
 use std::rc::Rc;
 use dataset::Dataset;
-use value::{Value, Ref, NomsMap};
+use value::{NomsValue, Value, Ref, NomsMap};
 use error::Error;
 use hash::Hash;
 use InnerNoms;
@@ -37,8 +37,8 @@ pub trait Database {
     /// Gets the Dataset corresponding to the given ds dataset ID from the datasets map.
     fn dataset(&self, ds: &str) -> Result<Dataset, Error>;
     fn rebase(&self);
-    fn commit(&self, ds: Dataset, v: Value, o: CommitOptions) -> Result<Dataset, Error>;
-    fn commit_value(&self, ds: Dataset, v: Value) -> Result<Dataset, Error>;
+    fn commit(&self, ds: Dataset, v: NomsValue, o: CommitOptions) -> Result<Dataset, Error>;
+    fn commit_value(&self, ds: Dataset, v: NomsValue) -> Result<Dataset, Error>;
     fn delete(&self, ds: Dataset) -> Result<Dataset, Error>;
     fn set_head(&self, ds: Dataset, head: Ref) -> Result<Dataset, Error>;
     fn fast_forward(&self, ds: Dataset, head: Ref) -> Result<Dataset, Error>;

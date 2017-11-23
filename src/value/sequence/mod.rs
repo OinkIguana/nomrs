@@ -11,12 +11,12 @@ pub(crate) use self::set::Set;
 pub use self::list::NomsList;
 pub(crate) use self::list::List;
 
-use super::{Value, Ref, FromNoms, IntoNoms};
+use super::{NomsValue, Value, Ref, FromNoms, IntoNoms};
 
 use hash::Hash;
 use either::Either;
 
-// TODO: implement standard library collection API on these types
+// TODO: this is probably a dumb trait, so just get rid of it or make it useful
 pub(crate) trait Sequence<V> {
     fn from_either(Either<Vec<V>, Vec<MetaTuple>>) -> Self;
     fn resolve(&self, Ref) {
@@ -25,7 +25,7 @@ pub(crate) trait Sequence<V> {
 }
 
 // Somethingsomething prolly tree node. See the noms source for more (meta_sequence.go).
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct MetaTuple {
     pub reference: Ref,
     pub key: OrderedKey,
@@ -33,7 +33,7 @@ pub(crate) struct MetaTuple {
 }
 
 // Somethingsomething key in prolly tree level. See noms source again (still meta_sequence.go)
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct OrderedKey {
     pub is_ordered_by_value: bool,
     pub value: Option<Value>,

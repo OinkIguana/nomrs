@@ -25,7 +25,7 @@ impl Chunk {
         Chunk(hyper.to_vec())
     }
     pub fn reader(&self) -> ChunkReader {
-        ChunkReader::new(self)
+        ChunkReader::new(&self.0)
     }
     pub fn data(&self) -> &Vec<u8> {
         &self.0
@@ -34,7 +34,7 @@ impl Chunk {
         self.0
     }
     pub fn into_value(self) -> Value {
-        Value(self)
+        Value::new(self.0)
     }
     pub fn writer() -> ChunkWriter {
         ChunkWriter::new()

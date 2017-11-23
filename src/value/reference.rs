@@ -44,16 +44,13 @@ impl std::hash::Hash for Ref {
 }
 
 impl IntoNoms for Ref {
-    fn into_noms(&self) -> Value {
-        Chunk::writer()
-            .write_ref(&self)
-            .finish()
-            .into_value()
+    fn into_noms(&self) -> Vec<u8> {
+        Value::Ref(self.clone()).into_noms()
     }
 }
 
 impl FromNoms for Ref {
-    fn from_noms(v: &Value) -> Self {
-        v.0.reader().read_ref()
+    fn from_noms(v: &Vec<u8>) -> Self {
+        Value::from_noms(v).to_ref().unwrap()
     }
 }

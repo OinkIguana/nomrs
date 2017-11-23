@@ -55,7 +55,7 @@ impl ChunkWriter {
     }
 
     pub fn write_value(self, value: Value) -> Self {
-        self.write_bytes(value.into_raw())
+        unimplemented!();
     }
 
     pub fn write_string(self, string: &str) -> Self {
