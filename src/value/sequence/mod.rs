@@ -39,3 +39,21 @@ pub(crate) struct OrderedKey {
     pub value: Option<Value>,
     pub hash: Option<Hash>,
 }
+
+impl OrderedKey {
+    pub fn by_value(value: Value) -> Self {
+        OrderedKey {
+            is_ordered_by_value: true,
+            value: Some(value),
+            hash: None,
+        }
+    }
+
+    pub fn by_hash(hash: Hash) -> Self {
+        OrderedKey {
+            is_ordered_by_value: false,
+            value: None,
+            hash: Some(hash),
+        }
+    }
+}

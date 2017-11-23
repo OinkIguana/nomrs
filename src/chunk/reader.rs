@@ -105,7 +105,7 @@ impl<'a> ChunkReader<'a> {
         let mut props = HashMap::with_capacity(prop_count);
         for _ in 0..prop_count {
             let key = self.read_utf8();
-            let value = self.read_chunk();
+            let value = self.read_item();
             props.insert(key, value);
         }
         (name, props)
@@ -124,7 +124,7 @@ impl<'a> ChunkReader<'a> {
         self.read_utf8()
     }
 
-    pub fn read_chunk(&self) -> Chunk {
+    pub fn read_item(&self) -> Chunk {
         let offset = self.offset.get();
         let kind = self.read_kind();
         self.offset.set(offset);
@@ -145,6 +145,10 @@ impl<'a> ChunkReader<'a> {
             ),
         };
         Chunk::new(self.chunk[offset..self.offset.get()].to_vec())
+    }
+
+    pub fn read_value(&self) -> Value {
+        Value::new(self.read_item().into_data())
     }
 
     pub fn read_ref(&self) -> Ref {
@@ -173,19 +177,10 @@ impl<'a> ChunkReader<'a> {
         let offset = self.offset.get();
         let kind = self.read_kind();
         if kind == Kind::Hash {
-            // TODO: make constructors for this instead of just making them
-            OrderedKey {
-                is_ordered_by_value: false,
-                value: None,
-                hash: Some(self.read_hash()),
-            }
+            OrderedKey::by_hash(self.read_hash())
         } else {
             self.offset.set(offset);
-            OrderedKey {
-                is_ordered_by_value: true,
-                value: Some(self.read_chunk().into_value()),
-                hash: None,
-            }
+            OrderedKey::by_value(self.read_value())
         }
     }
 
@@ -199,17 +194,17 @@ impl<'a> ChunkReader<'a> {
 
     pub fn read_map<K: IntoNoms + FromNoms + Eq + ::std::hash::Hash, V: IntoNoms + FromNoms>(&self) -> Map<K, V> {
         assert_eq!(Kind::Map, self.read_kind());
-        Map::from_either(self.read_sequence(|cr| ( K::from_noms(&cr.read_chunk().data()), V::from_noms(&cr.read_chunk().data()))))
+        Map::from_either(self.read_sequence(|cr| ( K::from_noms(&cr.read_item().data()), V::from_noms(&cr.read_item().data()))))
     }
 
     pub fn read_set<V: IntoNoms + FromNoms + ::std::hash::Hash + Eq>(&self) -> Set<V> {
         assert_eq!(Kind::Set, self.read_kind());
-        Set::from_either(self.read_sequence(|cr| V::from_noms(&cr.read_chunk().data())))
+        Set::from_either(self.read_sequence(|cr| V::from_noms(&cr.read_item().data())))
     }
 
     pub fn read_list<V: IntoNoms + FromNoms>(&self) -> List<V> {
         assert_eq!(Kind::List, self.read_kind());
-        List::from_either(self.read_sequence(|cr| V::from_noms(&cr.read_chunk().data())))
+        List::from_either(self.read_sequence(|cr| V::from_noms(&cr.read_item().data())))
     }
 
     pub fn empty(&self) -> bool {
