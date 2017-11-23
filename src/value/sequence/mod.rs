@@ -51,7 +51,7 @@ impl OrderedKey {
 
     pub fn is_ordered_by_value(&self) -> bool {
         match self {
-            &ByValue(_) => true,
+            &OrderedKey::ByValue(_) => true,
             _ => false,
         }
     }

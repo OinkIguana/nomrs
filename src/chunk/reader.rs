@@ -1,6 +1,6 @@
 use super::Chunk;
 use hash::{Hash, BYTE_LEN};
-use value::{Value, Type, Kind, Ref, FromNoms, IntoNoms, Map, Set, List, Sequence, MetaTuple, OrderedKey};
+use value::{Value, Type, Kind, Ref, FromNoms, IntoNoms, Map, Set, List, Sequence, MetaTuple, OrderedKey, Struct};
 use std::mem::transmute;
 use std::collections::HashMap;
 use byteorder::{NetworkEndian, ByteOrder};
@@ -98,17 +98,17 @@ impl<'a> ChunkReader<'a> {
         (self.read_varint(), self.read_varint())
     }
 
-    pub fn read_struct(&self) -> (String, HashMap<String, Chunk>) {
+    pub fn read_struct(&self) -> Struct {
         assert_eq!(Kind::Struct, self.read_kind());
         let name = self.read_utf8();
         let prop_count = self.read_u8() as usize;
         let mut props = HashMap::with_capacity(prop_count);
         for _ in 0..prop_count {
             let key = self.read_utf8();
-            let value = self.read_item();
-            props.insert(key, value);
+            let value = self.read_value();
+            props.insert(key, value.export());
         }
-        (name, props)
+        Struct{ name, props }
     }
 
     fn read_utf8(&self) -> String {
@@ -137,18 +137,38 @@ impl<'a> ChunkReader<'a> {
             Kind::Set       => { self.read_set::<Value>(); }
             Kind::Map       => { self.read_map::<Value, Value>(); }
             Kind::List      => { self.read_list::<Value>(); }
+            Kind::Value     => { panic!("Should not be reading a Value of type Value"); }
             v => unimplemented!(
                 "Reader for {:?} not yet implemented\nChunk starts with: {:?}",
                 v,
                 self.chunk[offset..min(offset + 21, self.chunk.len())].to_vec(),
                 // self.chunk[offset..].to_vec(),
             ),
-        };
+        }
         Chunk::new(self.chunk[offset..self.offset.get()].to_vec())
     }
 
     pub fn read_value(&self) -> Value {
-        Value::new(self.read_item().into_data())
+        let offset = self.offset.get();
+        let kind = self.read_kind();
+        self.offset.set(offset);
+        match kind {
+            Kind::Ref       => Value::Ref(self.read_ref()),
+            Kind::Boolean   => Value::Boolean(self.read_boolean()),
+            Kind::Number    => { let (i, e) = self.read_number(); Value::Number(i, e) },
+            Kind::String    => Value::String(self.read_string()),
+            Kind::Struct    => Value::Struct(self.read_struct()),
+            Kind::Set       => Value::Set(self.read_set::<Value>()),
+            Kind::Map       => Value::Map(self.read_map::<Value, Value>()),
+            Kind::List      => Value::List(self.read_list::<Value>()),
+            Kind::Value     => { panic!("Should not be reading a Value of type Value"); }
+            v => unimplemented!(
+                "Reader for {:?} not yet implemented\nChunk starts with: {:?}",
+                v,
+                self.chunk[offset..min(offset + 21, self.chunk.len())].to_vec(),
+                // self.chunk[offset..].to_vec(),
+            ),
+        }
     }
 
     pub fn read_ref(&self) -> Ref {
