@@ -17,6 +17,7 @@ use hash::Hash;
 use either::Either;
 
 // TODO: this is probably a dumb trait, so just get rid of it or make it useful
+//       from_either should probably just be two methods instead
 pub(crate) trait Sequence<V> {
     fn from_either(Either<Vec<V>, Vec<MetaTuple>>) -> Self;
     fn resolve(&self, Ref) {
@@ -34,26 +35,24 @@ pub(crate) struct MetaTuple {
 
 // Somethingsomething key in prolly tree level. See noms source again (still meta_sequence.go)
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct OrderedKey {
-    pub is_ordered_by_value: bool,
-    pub value: Option<Value>,
-    pub hash: Option<Hash>,
+pub(crate) enum OrderedKey {
+    ByValue(Value),
+    ByHash(Hash),
 }
 
 impl OrderedKey {
     pub fn by_value(value: Value) -> Self {
-        OrderedKey {
-            is_ordered_by_value: true,
-            value: Some(value),
-            hash: None,
-        }
+        OrderedKey::ByValue(value)
     }
 
     pub fn by_hash(hash: Hash) -> Self {
-        OrderedKey {
-            is_ordered_by_value: false,
-            value: None,
-            hash: Some(hash),
+        OrderedKey::ByHash(hash)
+    }
+
+    pub fn is_ordered_by_value(&self) -> bool {
+        match self {
+            &ByValue(_) => true,
+            _ => false,
         }
     }
 }
