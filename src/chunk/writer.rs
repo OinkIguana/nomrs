@@ -1,4 +1,3 @@
-use super::Chunk;
 use hash::Hash;
 use value::{Value, Type, Kind, Ref, FromNoms, IntoNoms, Map};
 use byteorder::{NetworkEndian, ByteOrder};
@@ -50,9 +49,9 @@ impl ChunkWriter {
             .write_hash(r.hash())
     }
 
-    pub fn write_map<K: FromNoms + IntoNoms + Eq + ::std::hash::Hash, V: IntoNoms + FromNoms>(mut self, map: &Map<K, V>) -> Self {
-        unimplemented!();
-    }
+    // pub fn write_map<'a, K: FromNoms<'a> + IntoNoms + Eq + ::std::hash::Hash, V: IntoNoms + FromNoms<'a>>(mut self, map: &Map<K, V>) -> Self {
+    //     unimplemented!();
+    // }
 
     pub fn write_value(self, value: Value) -> Self {
         unimplemented!();
@@ -62,9 +61,5 @@ impl ChunkWriter {
         self.write_kind(Kind::String)
             .write_u8(string.len() as u8)
             .write_bytes(string.as_bytes().to_vec())
-    }
-
-    pub fn finish(self) -> Chunk {
-        Chunk::new(self.0)
     }
 }

@@ -1,84 +1,111 @@
-use super::{NomsValue, Value, Ref, FromNoms, IntoNoms, Sequence, MetaTuple};
-
-use chunk::ChunkReader;
+use super::{NomsValue, Value, Ref, FromNoms, IntoNoms, MetaTuple, Collection};
+use database::ValueAccess;
+use chunk::Chunk;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
-use either::Either;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct NomsSet<V = NomsValue>(Set<V>)
-where V : Eq + Hash + FromNoms + IntoNoms;
+pub struct NomsSet<'a, V = NomsValue<'a>>(Set<'a, V>)
+where V : Eq + Hash + FromNoms<'a> + IntoNoms;
 
-impl<V> NomsSet<V>
-where V: Eq + Hash + FromNoms + IntoNoms {
-    pub fn new() -> Self {
-        NomsSet(Set::new())
+impl<'a, V> NomsSet<'a, V>
+where V: Eq + Hash + FromNoms<'a> + IntoNoms {
+    pub(crate) fn new(db: &'a ValueAccess) -> Self {
+        NomsSet(Set::new(db))
     }
-    pub(crate) fn from_set(set: Set<V>) -> Self {
+    pub(crate) fn from_set(set: Set<'a, V>) -> Self {
         NomsSet(set)
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum Set<V = Value>
-where V: FromNoms + IntoNoms + Hash + Eq {
+#[derive(Clone, Debug)]
+pub(crate) enum Set<'a, V = Value<'a>>
+where V: FromNoms<'a> + IntoNoms + Hash + Eq {
     Inner{
-        raw: Vec<MetaTuple>,
-        cache: HashMap<Ref, Set<V>>,
+        database: &'a ValueAccess,
+        raw: Vec<MetaTuple<'a>>,
+        cache: HashMap<Ref<'a>, Set<'a, V>>,
     },
     Leaf{
+        database: &'a ValueAccess,
         cache: HashSet<V>
     },
 }
 
-impl<V> Set<V>
-where V: FromNoms + IntoNoms + Eq + Hash{
-    pub fn new() -> Self {
-        Set::Leaf{ cache: HashSet::new() }
+impl<'a, V> PartialEq for Set<'a, V>
+where V: FromNoms<'a> + IntoNoms + Hash + Eq {
+    fn eq(&self, other: &Self) -> bool {
+        unimplemented!();
+    }
+}
+impl<'a, V> Eq for Set<'a, V>
+where V: FromNoms<'a> + IntoNoms + Hash + Eq {}
+
+impl<'a, V> Set<'a, V>
+where V: FromNoms<'a> + IntoNoms + Eq + Hash{
+    pub fn new(database: &'a ValueAccess) -> Self {
+        Set::Leaf{ database, cache: HashSet::new() }
     }
 
-    pub fn transform<V2>(self) -> Set<V2>
-    where V2: FromNoms + IntoNoms + Eq + Hash {
+    pub fn from_metatuples(database: &'a ValueAccess, raw: Vec<MetaTuple<'a>>) -> Self {
+        Set::Inner {
+            database,
+            raw,
+            cache: HashMap::new(),
+        }
+    }
+
+    pub fn from_values(database: &'a ValueAccess, raw: Vec<V>) -> Self {
+        Set::Leaf {
+            database,
+            cache: raw.into_iter().collect(),
+        }
+    }
+
+    pub fn transform<V2>(self) -> Set<'a, V2>
+    where V2: FromNoms<'a> + IntoNoms + Eq + Hash {
         match self {
-            Set::Inner{ raw, cache } =>
+            Set::Inner{ database, raw, cache } =>
                 Set::Inner{
+                    database,
                     raw,
                     cache: cache.into_iter().map(|(k, v)| (k, v.transform())).collect(),
                 },
-            Set::Leaf{ cache } =>
+            Set::Leaf{ database, cache } =>
                 Set::Leaf{
-                    cache: cache.into_iter().map(|v| V2::from_noms(&v.into_noms())).collect(),
+                    database,
+                    cache: cache.into_iter().map(|v| V2::from_noms(&Chunk::new(database, v.into_noms()))).collect(),
                 },
         }
     }
 }
 
-impl<V> ::std::hash::Hash for Set<V>
-where V: Eq + Hash + FromNoms + IntoNoms {
+impl<'a, V> ::std::hash::Hash for Set<'a, V>
+where V: Eq + Hash + FromNoms<'a> + IntoNoms {
     fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
         unimplemented!();
     }
 }
 
-impl<V> Sequence<V> for Set<V>
-where V: Eq + Hash + FromNoms + IntoNoms{
-    fn from_either(either: Either<Vec<V>, Vec<MetaTuple>>) -> Self {
-        match either {
-            Either::Left(it) => Set::Leaf{ cache: it.into_iter().collect() },
-            Either::Right(it) => Set::Inner{ raw: it, cache: HashMap::new() },
-        }
-    }
-}
-
-impl<V> IntoNoms for NomsSet<V>
-where V: FromNoms + IntoNoms + Hash + Eq {
+impl<'a, V> IntoNoms for NomsSet<'a, V>
+where V: FromNoms<'a> + IntoNoms + Hash + Eq {
     fn into_noms(&self) -> Vec<u8> {
         unimplemented!()
     }
 }
-impl<V> FromNoms for NomsSet<V>
-where V: FromNoms + IntoNoms + Hash + Eq {
-    fn from_noms(v: &Vec<u8>) -> Self {
-        NomsSet(ChunkReader::new(v).read_set())
+impl<'a, V> FromNoms<'a> for NomsSet<'a, V>
+where V: FromNoms<'a> + IntoNoms + Hash + Eq {
+    fn from_noms(chunk: &Chunk<'a>) -> Self {
+        Value::from_noms(chunk).to_set().unwrap()
+    }
+}
+
+impl<'a, V> Collection<'a, V> for Set<'a, V>
+where V: FromNoms<'a> + IntoNoms + Hash + Eq {
+    fn database(&self) -> &'a ValueAccess {
+        match self {
+            &Set::Inner{ database, .. } => database,
+            &Set::Leaf{ database, .. } => database,
+        }
     }
 }

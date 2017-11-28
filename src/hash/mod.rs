@@ -20,10 +20,15 @@ pub const STRING_LEN: usize = 32;
 
 pub const EMPTY_HASH: Hash = Hash([0; BYTE_LEN]);
 /// Representation of a hash
-#[derive(PartialEq, Eq, Clone, Copy, Hash, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct Hash([u8; BYTE_LEN]);
 impl Hash {
     pub fn new(v: [u8; BYTE_LEN]) -> Self { Hash(v) }
+    pub fn from_slice(v: &[u8]) -> Self {
+        let Hash(mut hash) = EMPTY_HASH;
+        hash.copy_from_slice(&v[..BYTE_LEN]);
+        Hash(hash)
+    }
     pub fn to_string(&self) -> String {
         HASH_FORMAT.encode(&self.0)
     }
@@ -42,6 +47,13 @@ impl Hash {
         *self == EMPTY_HASH
     }
 }
+
+impl ::std::hash::Hash for Hash {
+    fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
+        state.write(&self.0);
+    }
+}
+
 impl ::std::fmt::Display for Hash {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
         writeln!(f, "{}", self.to_string())
@@ -50,7 +62,7 @@ impl ::std::fmt::Display for Hash {
 
 /// Produces the hash of an array of bytes
 // TODO: ensure this produces the same sort of hashes as the Go hasher
-pub fn hash<'a>(input: &'a [u8]) -> Hash {
+pub fn hash(input: &[u8]) -> Hash {
     let mut hasher = Sha512::new();
     hasher.input(input);
     let mut buf = [0; OUTPUT_BYTES];

@@ -1,42 +1,33 @@
-//! Handles raw data from the database
+//! Handles reading and writing of data from the database
 
 mod reader;
-mod writer;
-
-use hyper;
-use value::Value;
+// mod writer;
 
 pub(crate) use self::reader::ChunkReader;
-pub(crate) use self::writer::ChunkWriter;
+// pub(crate) use self::writer::ChunkWriter;
 
-/// A chunk of raw bytes from the database
-///
-/// This is an internal representation of data yet to be converted to an actual Rust type.
-/// External users of this crate will be given `Value`s, which are just wrappers around
-/// these `Chunk`s.
-#[derive(Clone, Debug, Hash, Eq, PartialEq)]
-pub(crate) struct Chunk(Vec<u8>);
+use database::ValueAccess;
 
-impl Chunk {
-    pub fn new(data: Vec<u8>) -> Self {
-        Chunk(data)
+/// A chunk of raw data, associated with a database.
+#[derive(Clone, Debug)]
+pub struct Chunk<'a> {
+    database: Option<&'a ValueAccess>,
+    data: Vec<u8>
+}
+
+impl<'a> Chunk<'a> {
+    pub(crate) fn new(database: &'a ValueAccess, data: Vec<u8>) -> Self {
+        Self { database: Some(database), data }
     }
-    pub fn from_hyper(hyper: hyper::Chunk) -> Self {
-        Chunk(hyper.to_vec())
+    pub(crate) fn maybe(database: Option<&'a ValueAccess>, data: Vec<u8>) -> Self {
+        Self { database, data }
     }
-    pub fn reader(&self) -> ChunkReader {
-        ChunkReader::new(&self.0)
+
+    pub(crate) fn reader(&self) -> ChunkReader<'a> {
+        ChunkReader::new(self.database, &self.data)
     }
+
     pub fn data(&self) -> &Vec<u8> {
-        &self.0
-    }
-    pub fn into_data(self) -> Vec<u8> {
-        self.0
-    }
-    pub fn into_value(self) -> Value {
-        Value::new(self.0)
-    }
-    pub fn writer() -> ChunkWriter {
-        ChunkWriter::new()
+        &self.data
     }
 }

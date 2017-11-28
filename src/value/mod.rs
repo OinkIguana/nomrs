@@ -6,61 +6,84 @@ mod commit;
 mod sequence;
 mod kind;
 mod structure;
+mod collection;
 
 pub use self::kind::Type;
 pub use self::reference::Ref;
-pub use self::conversion::{IntoNoms, FromNoms};
 pub use self::commit::Commit;
 pub use self::sequence::{NomsMap, NomsSet, NomsList};
-pub use self::structure::{NomsStruct, Empty};
+pub use self::structure::Empty;
 
-pub(crate) use self::sequence::{Sequence, MetaTuple, OrderedKey, Map, Set, List};
+pub(crate) use self::sequence::{MetaTuple, OrderedKey, Map, Set, List};
+pub(crate) use self::conversion::{IntoNoms, FromNoms};
 pub(crate) use self::kind::Kind;
-pub(crate) use self::structure::Struct;
+pub(crate) use self::collection::Collection;
+pub(crate) use self::structure::{NomsStruct, Struct};
 
-use chunk::{Chunk, ChunkReader};
+use chunk::Chunk;
+use hash::hash;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub struct NomsValue(Value);
+pub struct NomsValue<'a>(Value<'a>);
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub(crate) enum Value {
+impl<'a> NomsValue<'a> {
+    pub(crate) fn import(self) -> Value<'a> {
+        self.0
+    }
+
+    pub fn transform<T: FromNoms<'a>>(self) -> T {
+        T::from_noms(&self.import().to_chunk())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum Value<'a> {
     Boolean(bool),
     Number(u64, u64),
     String(String),
     Blob(Vec<u8>),
-    Value(Vec<u8>), // TODO: is this just unknown value representation?
-    List(List),
-    Map(Map),
-    Ref(Ref),
-    Set(Set),
-    Struct(Struct),
+    Value(Chunk<'a>), // TODO: is this just unknown value representation?
+    List(List<'a>),
+    Map(Map<'a>),
+    Ref(Ref<'a>),
+    Set(Set<'a>),
+    Struct(Struct<'a>),
     Type(Type),
-    Union(Chunk),
+    Union(Box<Value<'a>>),
     Nil,
 }
 
-impl NomsValue {
-    pub(crate) fn import(self) -> Value {
-        self.0
+impl<'a> ::std::hash::Hash for Value<'a> {
+    fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            &Value::Ref(ref r) => { r.hash().hash(state); }
+            _ => { hash(&self.into_noms()).hash(state) }
+        }
     }
 }
 
-impl Value {
-    pub fn new(data: Vec<u8>) -> Value {
-        Value::Value(data)
+impl<'a> PartialEq for Value<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        unimplemented!()
+    }
+}
+impl<'a> Eq for Value<'a> {}
+
+impl<'a> Value<'a> {
+    pub fn new(chunk: Chunk<'a>) -> Value<'a> {
+        Value::Value(chunk)
     }
 
-    pub fn export(self) -> NomsValue {
+    pub fn export(self) -> NomsValue<'a> {
         NomsValue(self)
     }
 }
 
-impl Value {
+impl<'a> Value<'a> {
     pub fn is_bool(&self) -> bool {
         match self {
             &Value::Boolean(_) => true,
-            &Value::Value(ref raw) => ChunkReader::new(raw).read_kind() == Kind::Boolean,
+            &Value::Value(ref chunk) => chunk.reader().read_kind() == Kind::Boolean,
             _ => false,
         }
     }
@@ -75,7 +98,7 @@ impl Value {
     pub fn is_number(&self) -> bool {
         match self {
             &Value::Number(_, _) => true,
-            &Value::Value(ref raw) => ChunkReader::new(raw).read_kind() == Kind::Number,
+            &Value::Value(ref chunk) => chunk.reader().read_kind() == Kind::Number,
             _ => false,
         }
     }
@@ -90,7 +113,7 @@ impl Value {
     pub fn is_string(&self) -> bool {
         match self {
             &Value::String(_) => true,
-            &Value::Value(ref raw) => ChunkReader::new(raw).read_kind() == Kind::String,
+            &Value::Value(ref chunk) => chunk.reader().read_kind() == Kind::String,
             _ => false,
         }
     }
@@ -105,7 +128,7 @@ impl Value {
     pub fn is_type(&self) -> bool {
         match self {
             &Value::Type(_) => true,
-            &Value::Value(ref raw) => ChunkReader::new(raw).read_kind() == Kind::Type,
+            &Value::Value(ref chunk) => chunk.reader().read_kind() == Kind::Type,
             _ => false,
         }
     }
@@ -120,11 +143,11 @@ impl Value {
     pub fn is_ref(&self) -> bool {
         match self {
             &Value::Ref(_) => true,
-            &Value::Value(ref raw) => ChunkReader::new(raw).read_kind() == Kind::Ref,
+            &Value::Value(ref chunk) => chunk.reader().read_kind() == Kind::Ref,
             _ => false,
         }
     }
-    pub fn to_ref(self) -> Option<Ref> {
+    pub fn to_ref(self) -> Option<Ref<'a>> {
         match self {
             Value::Ref(r) => Some(r),
             Value::Value(_) => self.compile().to_ref(),
@@ -135,12 +158,12 @@ impl Value {
     pub fn is_list(&self) -> bool {
         match self {
             &Value::List(_) => true,
-            &Value::Value(ref raw) => ChunkReader::new(raw).read_kind() == Kind::List,
+            &Value::Value(ref chunk) => chunk.reader().read_kind() == Kind::List,
             _ => false,
         }
     }
-    pub fn to_list<V>(self) -> Option<NomsList<V>>
-    where V: FromNoms + IntoNoms {
+    pub fn to_list<V>(self) -> Option<NomsList<'a, V>>
+    where V: FromNoms<'a> + IntoNoms {
         match self {
             Value::List(l) => Some(NomsList::from_list(l.transform())),
             Value::Value(_) => self.compile().to_list(),
@@ -151,12 +174,12 @@ impl Value {
     pub fn is_map(&self) -> bool {
         match self {
             &Value::Map(_) => true,
-            &Value::Value(ref raw) => ChunkReader::new(raw).read_kind() == Kind::Map,
+            &Value::Value(ref chunk) => chunk.reader().read_kind() == Kind::Map,
             _ => false,
         }
     }
-    pub fn to_map<K, V>(self) -> Option<NomsMap<K, V>>
-    where K: FromNoms + IntoNoms + Eq + ::std::hash::Hash, V: FromNoms + IntoNoms {
+    pub fn to_map<K, V>(self) -> Option<NomsMap<'a, K, V>>
+    where K: FromNoms<'a> + IntoNoms + Eq + ::std::hash::Hash, V: FromNoms<'a> + IntoNoms {
         match self {
             Value::Map(m) => Some(NomsMap::from_map(m.transform())),
             Value::Value(_) => self.compile().to_map(),
@@ -167,12 +190,12 @@ impl Value {
     pub fn is_set(&self) -> bool {
         match self {
             &Value::Set(_) => true,
-            &Value::Value(ref raw) => ChunkReader::new(raw).read_kind() == Kind::Set,
+            &Value::Value(ref chunk) => chunk.reader().read_kind() == Kind::Set,
             _ => false,
         }
     }
-    pub fn to_set<V>(self) -> Option<NomsSet<V>>
-    where V: FromNoms + IntoNoms + Eq + ::std::hash::Hash{
+    pub fn to_set<V>(self) -> Option<NomsSet<'a, V>>
+    where V: FromNoms<'a> + IntoNoms + Eq + ::std::hash::Hash{
         match self {
             Value::Set(s) => Some(NomsSet::from_set(s.transform())),
             Value::Value(_) => self.compile().to_set(),
@@ -183,11 +206,11 @@ impl Value {
     pub fn is_struct(&self) -> bool {
         match self {
             &Value::Struct(_) => true,
-            &Value::Value(ref raw) => ChunkReader::new(raw).read_kind() == Kind::Struct,
+            &Value::Value(ref chunk) => chunk.reader().read_kind() == Kind::Struct,
             _ => false,
         }
     }
-    pub fn to_struct<T: NomsStruct>(self) -> Option<T> {
+    pub fn to_struct<T: NomsStruct<'a>>(self) -> Option<T> {
         match self {
             Value::Struct(Struct{ props, .. }) => T::from_prop_list(props),
             Value::Value(_) => self.compile().to_struct(),
@@ -197,19 +220,30 @@ impl Value {
 
     pub fn compile(self) -> Self {
         match self {
-            Value::Value(raw) => ChunkReader::new(&raw).read_value(),
+            Value::Value(chunk) => chunk.reader().read_value(),
             _ => self
+        }
+    }
+
+    pub fn to_chunk(self) -> Chunk<'a> {
+        match self {
+            Value::Value(chunk) => chunk,
+            Value::Map(ref col) => Chunk::new(col.database(), self.into_noms()),
+            Value::Set(ref col) => Chunk::new(col.database(), self.into_noms()),
+            Value::List(ref col) => Chunk::new(col.database(), self.into_noms()),
+            Value::Ref(ref col) => Chunk::new(col.database(), self.into_noms()),
+            _ => Chunk::maybe(None, self.into_noms()),
         }
     }
 }
 
-impl IntoNoms for NomsValue {
+impl<'a> IntoNoms for NomsValue<'a> {
     fn into_noms(&self) -> Vec<u8> {
         self.0.into_noms()
     }
 }
-impl FromNoms for NomsValue {
-    fn from_noms(v: &Vec<u8>) -> Self {
-        NomsValue(Value::from_noms(v))
+impl<'a> FromNoms<'a> for NomsValue<'a> {
+    fn from_noms(chunk: &Chunk<'a>) -> Self {
+        NomsValue(Value::from_noms(chunk))
     }
 }

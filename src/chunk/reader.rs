@@ -1,15 +1,22 @@
-use super::Chunk;
+use database::ValueAccess;
 use hash::{Hash, BYTE_LEN};
-use value::{Value, Type, Kind, Ref, FromNoms, IntoNoms, Map, Set, List, Sequence, MetaTuple, OrderedKey, Struct};
+use value::{Value, Type, Kind, Ref, FromNoms, IntoNoms, Map, Set, List, MetaTuple, OrderedKey, Struct};
+use chunk::Chunk;
+use byteorder::{NetworkEndian, ByteOrder};
+use either::Either;
 use std::mem::transmute;
 use std::collections::HashMap;
-use byteorder::{NetworkEndian, ByteOrder};
 use std::cell::Cell;
-use either::Either;
 use std::cmp::min;
 
+
+// TODO: there are a lot of unwrap calls on the self.database. I believe this should be impossible
+//       to get to the state where it is not unwrappable, but this is definitely something to be
+//       careful of, and could most likely be improved. As it is written, it's no better than null
+//       without null checks...
 pub(crate) struct ChunkReader<'a> {
-    chunk: &'a Vec<u8>,
+    database: Option<&'a ValueAccess>,
+    chunk: Vec<u8>,
     offset: Cell<usize>,
 }
 
@@ -18,9 +25,10 @@ fn split_varint(i: u8) -> (bool, u64) {
 }
 
 impl<'a> ChunkReader<'a> {
-    pub(crate) fn new(chunk: &'a Vec<u8>) -> Self {
+    pub fn new(database: Option<&'a ValueAccess>, chunk: &Vec<u8>) -> Self {
         ChunkReader {
-            chunk,
+            database,
+            chunk: chunk.clone(),
             offset: Cell::new(0),
         }
     }
@@ -98,7 +106,7 @@ impl<'a> ChunkReader<'a> {
         (self.read_varint(), self.read_varint())
     }
 
-    pub fn read_struct(&self) -> Struct {
+    pub fn read_struct(&self) -> Struct<'a> {
         assert_eq!(Kind::Struct, self.read_kind());
         let name = self.read_utf8();
         let prop_count = self.read_u8() as usize;
@@ -124,7 +132,7 @@ impl<'a> ChunkReader<'a> {
         self.read_utf8()
     }
 
-    pub fn read_item(&self) -> Chunk {
+    pub fn read_item(&self) -> Vec<u8> {
         let offset = self.offset.get();
         let kind = self.read_kind();
         self.offset.set(offset);
@@ -145,10 +153,10 @@ impl<'a> ChunkReader<'a> {
                 // self.chunk[offset..].to_vec(),
             ),
         }
-        Chunk::new(self.chunk[offset..self.offset.get()].to_vec())
+        self.chunk[offset..self.offset.get()].to_vec()
     }
 
-    pub fn read_value(&self) -> Value {
+    pub fn read_value(&self) -> Value<'a> {
         let offset = self.offset.get();
         let kind = self.read_kind();
         self.offset.set(offset);
@@ -171,12 +179,12 @@ impl<'a> ChunkReader<'a> {
         }
     }
 
-    pub fn read_ref(&self) -> Ref {
+    pub fn read_ref(&self) -> Ref<'a> {
         assert_eq!(Kind::Ref, self.read_kind());
-        Ref::new(self.read_hash(), self.read_type(), self.read_varint())
+        Ref::new(self.database.unwrap(), self.read_hash(), self.read_type(), self.read_varint())
     }
 
-    fn read_sequence<T, F: Fn(&Self) -> T>(&self, extract: F) -> Either<Vec<T>, Vec<MetaTuple>> {
+    fn read_sequence<T, F: Fn(&Self) -> T>(&self, extract: F) -> Either<Vec<T>, Vec<MetaTuple<'a>>> {
         let level = self.read_varint();
         let len = self.read_varint();
         let mut seq = if level == 0 {
@@ -193,7 +201,7 @@ impl<'a> ChunkReader<'a> {
         seq
     }
 
-    fn read_ordered_key(&self) -> OrderedKey {
+    fn read_ordered_key(&self) -> OrderedKey<'a> {
         let offset = self.offset.get();
         let kind = self.read_kind();
         if kind == Kind::Hash {
@@ -204,7 +212,7 @@ impl<'a> ChunkReader<'a> {
         }
     }
 
-    fn read_metatuple(&self) -> MetaTuple {
+    fn read_metatuple(&self) -> MetaTuple<'a> {
         MetaTuple {
             reference: self.read_ref(),
             key: self.read_ordered_key(),
@@ -212,19 +220,34 @@ impl<'a> ChunkReader<'a> {
         }
     }
 
-    pub fn read_map<K: IntoNoms + FromNoms + Eq + ::std::hash::Hash, V: IntoNoms + FromNoms>(&self) -> Map<K, V> {
+    pub fn read_map<K: IntoNoms + FromNoms<'a> + Eq + ::std::hash::Hash, V: IntoNoms + FromNoms<'a>>(&self) -> Map<'a, K, V> {
         assert_eq!(Kind::Map, self.read_kind());
-        Map::from_either(self.read_sequence(|cr| ( K::from_noms(&cr.read_item().data()), V::from_noms(&cr.read_item().data()))))
+        self.read_sequence(|cr|
+                ( K::from_noms(&Chunk::new(cr.database.unwrap(), cr.read_item()))
+                , V::from_noms(&Chunk::new(cr.database.unwrap(), cr.read_item())))
+            )
+            .either(
+                |v| Map::from_values(self.database.unwrap(), v),
+                |mts| Map::from_metatuples(self.database.unwrap(), mts),
+            )
     }
 
-    pub fn read_set<V: IntoNoms + FromNoms + ::std::hash::Hash + Eq>(&self) -> Set<V> {
+    pub fn read_set<V: IntoNoms + FromNoms<'a> + ::std::hash::Hash + Eq>(&self) -> Set<'a, V> {
         assert_eq!(Kind::Set, self.read_kind());
-        Set::from_either(self.read_sequence(|cr| V::from_noms(&cr.read_item().data())))
+        self.read_sequence(|cr| V::from_noms(&Chunk::new(cr.database.unwrap(), cr.read_item())))
+            .either(
+                |v| Set::from_values(self.database.unwrap(), v),
+                |mts| Set::from_metatuples(self.database.unwrap(), mts),
+            )
     }
 
-    pub fn read_list<V: IntoNoms + FromNoms>(&self) -> List<V> {
+    pub fn read_list<V: IntoNoms + FromNoms<'a>>(&self) -> List<'a, V> {
         assert_eq!(Kind::List, self.read_kind());
-        List::from_either(self.read_sequence(|cr| V::from_noms(&cr.read_item().data())))
+        self.read_sequence(|cr| V::from_noms(&Chunk::new(cr.database.unwrap(), cr.read_item())))
+            .either(
+                |v| List::from_values(self.database.unwrap(), v),
+                |mts| List::from_metatuples(self.database.unwrap(), mts),
+            )
     }
 
     pub fn empty(&self) -> bool {
@@ -238,10 +261,10 @@ impl<'a> ChunkReader<'a> {
         n
     }
 
-    pub fn read_raw(&self, len: usize) -> Chunk {
+    pub fn read_raw(&self, len: usize) -> Vec<u8> {
         let offset = self.offset.get();
         let value = self.chunk[offset..offset + len].to_vec();
         self.offset.set(offset + len);
-        Chunk(value)
+        value
     }
 }

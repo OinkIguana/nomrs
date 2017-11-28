@@ -6,10 +6,10 @@ use hyper::client::HttpConnector;
 use tokio_core::reactor::Handle;
 use futures::{Future, Stream, future};
 use error::Error;
-use hash::Hash;
+use hash::{Hash, BYTE_LEN};
 use std::collections::HashMap;
-use chunk::Chunk;
 use byteorder::{NetworkEndian, ByteOrder};
+use database::ValueAccess;
 
 const ROOT_PATH: &'static str           = "/root/";
 const GET_REFS_PATH: &'static str       = "/getRefs/";
@@ -57,25 +57,28 @@ impl Client {
         )
     }
 
-    pub fn post_get_refs(&self, root: Hash, refs: Vec<Hash>) -> Box<Future<Item = HashMap<Hash, Chunk>, Error = Error>> {
+    pub fn post_get_refs<'a>(&self, database: &'a ValueAccess, refs: Vec<Hash>) -> Box<Future<Item = HashMap<Hash, Vec<u8>>, Error = Error>> {
         let client = self.client.clone();
         let mut body = vec![0; 4];
         NetworkEndian::write_u32(&mut body, refs.len() as u32);
         body.extend(refs.iter().flat_map(|r| r.raw_bytes().to_vec()));
         Box::new(
-            future::result(self.request_with_query(Method::Post, GET_REFS_PATH, &format!("root={}", root.to_string())))
+            future::result(self.request_for(Method::Post, GET_REFS_PATH))
                 .map(|mut req| { req.set_body(body); req })
                 .and_then(move |req| client.request(req))
                 .map_err(|err| Error::Hyper(err))
                 .and_then(retrieve_body)
-                .map(Chunk::from_hyper)
+                .map(|c| c.to_vec())
                 .map(|chunk| {
-                    let reader = chunk.reader();
                     let mut values = HashMap::new();
-                    while !reader.empty() {
-                        let hash = reader.read_hash();
-                        let len = reader.read_u32();
-                        let bytes = reader.read_raw(len as usize);
+                    let mut i = 0;
+                    while i != chunk.len() {
+                        let hash = Hash::from_slice(&chunk[i..i + BYTE_LEN]);
+                        i += BYTE_LEN;
+                        let len = NetworkEndian::read_u32(&chunk[i..i + 4]) as usize;
+                        i += 4;
+                        let bytes = chunk[i..i + len].to_vec();
+                        i += len;
                         values.insert(hash, bytes);
                     }
                     values

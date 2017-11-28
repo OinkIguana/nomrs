@@ -1,24 +1,25 @@
 use std::collections::HashMap;
+use chunk::Chunk;
 use super::{NomsValue, Value, FromNoms, IntoNoms};
 
-pub trait NomsStruct: Sized {
-    fn from_prop_list(props: HashMap<String, NomsValue>) -> Option<Self>;
+pub trait NomsStruct<'a>: Sized {
+    fn from_prop_list(props: HashMap<String, NomsValue<'a>>) -> Option<Self>;
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct Struct {
+pub(crate) struct Struct<'a> {
     pub name: String,
-    pub props: HashMap<String, NomsValue>,
+    pub props: HashMap<String, NomsValue<'a>>,
 }
 
-impl Eq for Struct {}
-impl PartialEq for Struct {
+impl<'a> Eq for Struct<'a> {}
+impl<'a> PartialEq for Struct<'a> {
     fn eq(&self, other: &Struct) -> bool {
         false
     }
 }
 
-impl ::std::hash::Hash for Struct {
+impl<'a> ::std::hash::Hash for Struct<'a> {
     fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
         unimplemented!();
     }
@@ -31,11 +32,11 @@ impl IntoNoms for Empty {
         unimplemented!();
     }
 }
-impl FromNoms for Empty {
-    fn from_noms(v: &Vec<u8>) -> Self {
-        Value::from_noms(v).to_struct().unwrap()
+impl<'a> FromNoms<'a> for Empty {
+    fn from_noms(chunk: &Chunk<'a>) -> Self {
+        Value::from_noms(chunk).to_struct().unwrap()
     }
 }
-impl NomsStruct for Empty {
+impl<'a> NomsStruct<'a> for Empty {
     fn from_prop_list(_: HashMap<String, NomsValue>) -> Option<Self> { Some(Empty) }
 }

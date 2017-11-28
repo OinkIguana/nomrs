@@ -1,21 +1,20 @@
-use super::{NomsValue, Value, Ref, FromNoms, IntoNoms, MetaTuple, Sequence};
-
+use super::{NomsValue, Value, Ref, FromNoms, IntoNoms, MetaTuple, Collection};
+use database::ValueAccess;
 use std::collections::HashMap;
-use chunk::ChunkReader;
+use chunk::Chunk;
 use std::hash::Hash;
-use either::Either;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct NomsMap<K = NomsValue, V = NomsValue>(Map<K, V>)
-where K: FromNoms + IntoNoms + Eq + Hash, V: FromNoms + IntoNoms;
+pub struct NomsMap<'a, K = NomsValue<'a>, V = NomsValue<'a>>(Map<'a, K, V>)
+where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms;
 
-impl<K, V> NomsMap<K, V>
-where K: FromNoms + IntoNoms + Eq + Hash, V: FromNoms + IntoNoms {
-    pub fn new() -> Self {
-        NomsMap(Map::new())
+impl<'a, K, V> NomsMap<'a, K, V>
+where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms {
+    pub(crate) fn new(db: &'a ValueAccess) -> Self {
+        NomsMap(Map::new(db))
     }
 
-    pub(crate) fn from_map(map: Map<K, V>) -> Self {
+    pub(crate) fn from_map(map: Map<'a, K, V>) -> Self {
         NomsMap(map)
     }
 
@@ -25,37 +24,60 @@ where K: FromNoms + IntoNoms + Eq + Hash, V: FromNoms + IntoNoms {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum Map<K = Value, V = Value>
-where K: FromNoms + IntoNoms + Eq + Hash, V: FromNoms + IntoNoms {
+#[derive(Clone, Debug)]
+pub(crate) enum Map<'a, K = Value<'a>, V = Value<'a>>
+where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms {
     Inner{
-        raw: Vec<MetaTuple>,
-        cache: HashMap<Ref, Map<K, V>>,
+        database: &'a ValueAccess,
+        raw: Vec<MetaTuple<'a>>,
+        cache: HashMap<Ref<'a>, Map<'a, K, V>>,
     },
     Leaf{
+        database: &'a ValueAccess,
         cache: HashMap<K, V>,
     },
 }
 
-impl<K, V> Map<K, V>
-where K: FromNoms + IntoNoms + Eq + Hash, V: FromNoms + IntoNoms {
-    pub fn new() -> Self {
+impl<'a, K, V> Map<'a, K, V>
+where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms {
+    pub fn new(database: &'a ValueAccess) -> Self {
         Map::Leaf {
+            database,
             cache: HashMap::new(),
         }
     }
 
-    pub fn transform<K2, V2>(self) -> Map<K2, V2>
-    where K2: FromNoms + IntoNoms + Eq + Hash, V2: FromNoms + IntoNoms {
+    pub fn from_metatuples(database: &'a ValueAccess, raw: Vec<MetaTuple<'a>>) -> Self {
+        Map::Inner {
+            database,
+            raw,
+            cache: HashMap::new(),
+        }
+    }
+
+    pub fn from_values(database: &'a ValueAccess, raw: Vec<(K, V)>) -> Self {
+        Map::Leaf {
+            database,
+            cache: raw.into_iter().collect(),
+        }
+    }
+
+    pub fn transform<K2, V2>(self) -> Map<'a, K2, V2>
+    where K2: FromNoms<'a> + IntoNoms + Eq + Hash, V2: FromNoms<'a> + IntoNoms {
         match self {
-            Map::Inner{ raw, cache } =>
+            Map::Inner{ database, raw, cache } =>
                 Map::Inner {
+                    database,
                     raw,
                     cache: cache.into_iter().map(|(k, v)| (k, v.transform())).collect(),
                 },
-            Map::Leaf{ cache } =>
+            Map::Leaf{ database, cache } =>
                 Map::Leaf {
-                    cache: cache.into_iter().map(|(k, v)| (K2::from_noms(&k.into_noms()), V2::from_noms(&v.into_noms()))).collect(),
+                    database,
+                    cache: cache.into_iter().map(|(k, v)|
+                        ( K2::from_noms(&Chunk::new(database, k.into_noms()))
+                        , V2::from_noms(&Chunk::new(database, v.into_noms())))
+                    ).collect(),
                 },
         }
     }
@@ -69,32 +91,41 @@ where K: FromNoms + IntoNoms + Eq + Hash, V: FromNoms + IntoNoms {
     }
 }
 
-impl<K, V> ::std::hash::Hash for Map<K, V>
-where K: FromNoms + IntoNoms + Eq + Hash, V: FromNoms + IntoNoms {
+impl<'a, K, V> PartialEq for Map<'a, K, V>
+where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms {
+    fn eq(&self, other: &Self) -> bool {
+        unimplemented!();
+    }
+}
+impl<'a, K, V> Eq for Map<'a, K, V>
+where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms {}
+
+impl<'a, K, V> ::std::hash::Hash for Map<'a, K, V>
+where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms {
     fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
         unimplemented!();
     }
 }
 
-impl<K, V> Sequence<(K, V)> for Map<K, V>
-where K: FromNoms + IntoNoms + Eq + Hash, V: FromNoms + IntoNoms {
-    fn from_either(either: Either<Vec<(K, V)>, Vec<MetaTuple>>) -> Self {
-        match either {
-            Either::Left(it)  => Map::Leaf { cache: it.into_iter().collect() },
-            Either::Right(it) => Map::Inner { raw: it, cache: HashMap::new() }
-        }
-    }
-}
-
-impl<K, V> IntoNoms for NomsMap<K, V>
-where K: FromNoms + IntoNoms + Eq + Hash, V: FromNoms + IntoNoms {
+impl<'a, K, V> IntoNoms for NomsMap<'a, K, V>
+where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms {
     fn into_noms(&self) -> Vec<u8> {
         unimplemented!();
     }
 }
-impl<K, V> FromNoms for NomsMap<K, V>
-where K: FromNoms + IntoNoms + Eq + Hash, V: FromNoms + IntoNoms {
-    fn from_noms(v: &Vec<u8>) -> Self {
-        NomsMap(ChunkReader::new(v).read_map())
+impl<'a, K, V> FromNoms<'a> for NomsMap<'a, K, V>
+where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms {
+    fn from_noms(chunk: &Chunk<'a>) -> Self {
+        Value::from_noms(chunk).to_map().unwrap()
+    }
+}
+
+impl<'a, K, V> Collection<'a, V> for Map<'a, K, V>
+where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms {
+    fn database(&self) -> &'a ValueAccess {
+        match self {
+            &Map::Inner{ database, .. } => database,
+            &Map::Leaf{ database, .. } => database,
+        }
     }
 }

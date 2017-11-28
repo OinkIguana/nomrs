@@ -1,16 +1,16 @@
-/// Defines a database that is backed by a Noms HTTP database
+//! Defines a database that is backed by a Noms HTTP database
 
 use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 use super::{CommitOptions, ValueAccess};
-use value::{NomsValue, Value, Ref, FromNoms, IntoNoms, NomsMap, NomsSet};
-use chunk::Chunk;
+use value::{NomsValue, Value, Ref, FromNoms, IntoNoms, NomsMap};
 use dataset::Dataset;
 use error::Error;
 use http::Client;
 use hash::Hash;
 use InnerNoms;
+use chunk::{Chunk};
 
 #[derive(Clone)]
 pub struct Database {
@@ -20,6 +20,9 @@ pub struct Database {
     root: Hash,
     noms: Rc<RefCell<InnerNoms>>,
     cache: RefCell<HashMap<Hash, Vec<u8>>>,
+}
+impl ::std::fmt::Debug for Database {
+    fn fmt(&self, _: &mut ::std::fmt::Formatter) -> ::std::fmt::Result { Ok(()) }
 }
 
 impl Database {
@@ -41,7 +44,7 @@ impl Database {
 impl super::Database for Database {
     fn datasets(&self) -> Result<NomsMap<String, Ref>, Error> {
         if self.root.is_empty() {
-            Ok(NomsMap::new())
+            Ok(NomsMap::new(self))
         } else {
             self.get_value(self.root)
                 .and_then(|v| v.to_map().ok_or(Error::ConversionError("Value is not a map".to_string())))
@@ -66,14 +69,14 @@ impl super::ValueAccess for Database {
     fn get_value(&self, r: Hash) -> Result<Value, Error> {
         let cached = self.cache.borrow().get(&r).cloned();
         match cached {
-            Some(ref data) => Ok(Value::from_noms(data)),
+            Some(data) => Ok(Value::from_noms(&Chunk::new(self, data))),
             None =>
                 self.noms.borrow_mut()
                     .event_loop
-                    .run(self.client.post_get_refs(self.root, vec![r]))
+                    .run(self.client.post_get_refs(self, vec![r]))
                     .and_then(|mut v| v.remove(&r).ok_or(Error::NoValueForRef(r)))
                     .map(|v| self.add_to_cache(r.clone(), v))
-                    .map(|c| c.into_value())
+                    .map(|c| Chunk::new(self, c).reader().read_value())
         }
     }
 }

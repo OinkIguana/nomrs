@@ -23,10 +23,17 @@ impl Default for Protocol {
     fn default() -> Self { Protocol::Http }
 }
 
-pub struct CommitOptions {
-    // TODO: un-generalize this when Rust<->Noms conversions are implemented?
-    parents: Value,
-    meta: Value,
+pub struct CommitOptions<'a> {
+    pub parents: NomsValue<'a>,
+    pub meta: NomsValue<'a>,
+}
+impl<'a> Default for CommitOptions<'a> {
+    fn default() -> Self {
+        CommitOptions{
+            parents: Value::Nil.export(),
+            meta: Value::Nil.export(),
+        }
+    }
 }
 
 /// A trait providing full access to the underlying Noms database.
@@ -47,7 +54,7 @@ pub trait Database {
     fn stats_summary(&self) -> String { UNSUPPORTED.to_string() }
 }
 
-pub(crate) trait ValueAccess: Database {
+pub(crate) trait ValueAccess: Database + ::std::fmt::Debug {
     fn get_value(&self, Hash) -> Result<Value, Error>;
 }
 

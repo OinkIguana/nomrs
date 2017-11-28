@@ -11,37 +11,27 @@ pub(crate) use self::set::Set;
 pub use self::list::NomsList;
 pub(crate) use self::list::List;
 
-use super::{NomsValue, Value, Ref, FromNoms, IntoNoms};
+use super::{NomsValue, Value, Ref, FromNoms, IntoNoms, Collection};
 
 use hash::Hash;
-use either::Either;
-
-// TODO: this is probably a dumb trait, so just get rid of it or make it useful
-//       from_either should probably just be two methods instead
-pub(crate) trait Sequence<V> {
-    fn from_either(Either<Vec<V>, Vec<MetaTuple>>) -> Self;
-    fn resolve(&self, Ref) {
-        unimplemented!();
-    }
-}
 
 // Somethingsomething prolly tree node. See the noms source for more (meta_sequence.go).
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct MetaTuple {
-    pub reference: Ref,
-    pub key: OrderedKey,
+pub(crate) struct MetaTuple<'a> {
+    pub reference: Ref<'a>,
+    pub key: OrderedKey<'a>,
     pub num_leaves: u64,
 }
 
 // Somethingsomething key in prolly tree level. See noms source again (still meta_sequence.go)
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum OrderedKey {
-    ByValue(Value),
+pub(crate) enum OrderedKey<'a> {
+    ByValue(Value<'a>),
     ByHash(Hash),
 }
 
-impl OrderedKey {
-    pub fn by_value(value: Value) -> Self {
+impl<'a> OrderedKey<'a> {
+    pub fn by_value(value: Value<'a>) -> Self {
         OrderedKey::ByValue(value)
     }
 

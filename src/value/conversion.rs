@@ -1,28 +1,25 @@
-use byteorder::{NetworkEndian, ByteOrder};
 use super::{Value, Type};
 use chunk::Chunk;
-use std::hash::Hash;
-use std::collections::{HashMap, HashSet};
 
-pub trait IntoNoms: ::std::fmt::Debug {
+pub trait IntoNoms {
     fn into_noms(&self) -> Vec<u8>;
 }
-pub trait FromNoms: ::std::fmt::Debug {
-    fn from_noms(&Vec<u8>) -> Self;
+pub trait FromNoms<'a> {
+    fn from_noms(&Chunk<'a>) -> Self;
 }
 
-impl IntoNoms for Chunk {
-    fn into_noms(&self) -> Vec<u8> { self.data().clone() }
+impl<'a> IntoNoms for Vec<u8> {
+    fn into_noms(&self) -> Vec<u8> { self.clone() }
 }
-impl FromNoms for Chunk {
-    fn from_noms(v: &Vec<u8>) -> Chunk { Chunk::new(v.clone()) }
+impl<'a> FromNoms<'a> for Vec<u8> {
+    fn from_noms(v: &Chunk<'a>) -> Self { v.data().clone() }
 }
 
-impl IntoNoms for Value {
-    fn into_noms(&self) -> Vec<u8> { unimplemented!() }
+impl<'a> IntoNoms for Value<'a> {
+    fn into_noms(&self) -> Vec<u8> { unimplemented!("Trying to write {:?} to binary!", self) }
 }
-impl FromNoms for Value {
-    fn from_noms(v: &Vec<u8>) -> Self { Value::Value(v.clone()) }
+impl<'a> FromNoms<'a> for Value<'a> {
+    fn from_noms(chunk: &Chunk<'a>) -> Self { Value::Value(chunk.clone()) }
 }
 
 impl IntoNoms for String {
@@ -30,9 +27,9 @@ impl IntoNoms for String {
         Value::String(self.clone()).into_noms()
     }
 }
-impl FromNoms for String {
-    fn from_noms(v: &Vec<u8>) -> Self {
-        Value::from_noms(v).to_string().unwrap()
+impl<'a> FromNoms<'a> for String {
+    fn from_noms(chunk: &Chunk<'a>) -> Self {
+        Value::from_noms(chunk).to_string().unwrap()
     }
 }
 
@@ -41,8 +38,8 @@ impl IntoNoms for Type {
         Value::Type(self.clone()).into_noms()
     }
 }
-impl FromNoms for Type {
-    fn from_noms(v: &Vec<u8>) -> Type {
-        Value::from_noms(v).to_type().unwrap()
+impl<'a> FromNoms<'a> for Type {
+    fn from_noms(chunk: &Chunk<'a>) -> Type {
+        Value::from_noms(chunk).to_type().unwrap()
     }
 }
