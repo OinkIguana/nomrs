@@ -7,6 +7,7 @@ mod sequence;
 mod kind;
 mod structure;
 mod collection;
+mod varint;
 
 pub use self::kind::Type;
 pub use self::reference::Ref;

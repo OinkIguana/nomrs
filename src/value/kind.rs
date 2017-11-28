@@ -1,3 +1,6 @@
+use super::{IntoNoms, FromNoms};
+use chunk::Chunk;
+
 /// A C-Style enum, which must continue to be in the same order as the NomsKind enum in the
 /// official Noms Go package to ensure proper deserialization.
 ///
@@ -18,6 +21,16 @@ pub(crate) enum Kind {
     Type,
     Union,
     Hash, // internal... apparently
+}
+impl IntoNoms for Kind {
+    fn into_noms(&self) -> Vec<u8> {
+        vec![*self as u8]
+    }
+}
+impl<'a> FromNoms<'a> for Kind {
+    fn from_noms(chunk: &Chunk<'a>) -> Self {
+        chunk.reader().read_kind()
+    }
 }
 impl Kind {
     pub fn variants() -> usize {
