@@ -1,7 +1,10 @@
+//! Implements the Commit type, used as the value of a dataset in the database.
 use super::{Ref, NomsValue, Value, IntoNoms, FromNoms, NomsSet, NomsStruct, Empty};
 use chunk::Chunk;
 use std::collections::HashMap;
 
+/// A commit from the Noms database. The value of every dataset is a commit, containing the actual
+/// data from the database, along with additional arbitrary metadata and the set of parent commits.
 #[derive(Clone, Debug)]
 pub struct Commit<'a, M = Empty, V = NomsValue<'a>>
 where M: IntoNoms + FromNoms<'a> + NomsStruct<'a>, V: IntoNoms + FromNoms<'a> {

@@ -1,5 +1,4 @@
 //! Generic representation of a value in the database
-
 mod conversion;
 mod reference;
 mod commit;

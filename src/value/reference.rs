@@ -1,3 +1,4 @@
+//! The Noms Reference type
 use super::{Type, Value, IntoNoms, FromNoms, Collection};
 use database::ValueAccess;
 use hash::{Hash, EMPTY_HASH};
@@ -5,6 +6,9 @@ use chunk::Chunk;
 use std::fmt::{Display, Formatter};
 use std::hash::Hasher;
 
+/// A Ref describes a reference within a Noms database.
+///
+/// TODO: type references?
 #[derive(Clone)]
 pub struct Ref<'a> {
     database: &'a ValueAccess,

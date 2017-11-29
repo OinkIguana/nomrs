@@ -1,4 +1,5 @@
-use super::{IntoNoms, FromNoms};
+//! Defines all the Noms types (kinds), and the Noms Type type
+use super::{IntoNoms, FromNoms, Value};
 use chunk::Chunk;
 
 /// A C-Style enum, which must continue to be in the same order as the NomsKind enum in the
@@ -33,10 +34,6 @@ impl<'a> FromNoms<'a> for Kind {
     }
 }
 impl Kind {
-    pub fn variants() -> usize {
-        Kind::Union as usize + 1
-    }
-
     pub fn is_primitive(self) -> bool {
         use self::Kind::*;
         match self {
@@ -46,6 +43,8 @@ impl Kind {
     }
 }
 
+/// Literally "type description", a `TypeDesc` describes a kind with enough detail that the type
+/// could be replicated exactly in another location.
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum TypeDesc {
     Primitive,
@@ -58,14 +57,17 @@ enum TypeDesc {
     }
 }
 
+/// The Noms Type type. Consists of a basic Noms kind, and a type description describing the
+/// structure of more complex kinds of data.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Type {
     kind: Kind,
     desc: TypeDesc,
 }
+
 impl ::std::hash::Hash for Type {
     fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
-        unimplemented!();
+        Value::Type(self.clone()).hash(state)
     }
 }
 
@@ -91,5 +93,16 @@ impl Type {
             kind: Kind::Struct,
             desc: TypeDesc::Struct { name, keys, types, optional },
         }
+    }
+}
+
+impl IntoNoms for Type {
+    fn into_noms(&self) -> Vec<u8> {
+        Value::Type(self.clone()).into_noms()
+    }
+}
+impl<'a> FromNoms<'a> for Type {
+    fn from_noms(chunk: &Chunk<'a>) -> Type {
+        Value::from_noms(chunk).to_type().unwrap()
     }
 }

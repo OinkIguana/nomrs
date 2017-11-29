@@ -1,10 +1,8 @@
 //! Handles reading and writing of data from the database
 
 mod reader;
-// mod writer;
 
 pub(crate) use self::reader::ChunkReader;
-// pub(crate) use self::writer::ChunkWriter;
 
 use database::ValueAccess;
 

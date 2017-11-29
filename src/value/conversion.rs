@@ -1,10 +1,15 @@
-use super::{varint, Value, Type, Kind};
+//! Defines some conversions from basic Noms types to standard Rust types
+use super::{varint, Value, Kind};
 use chunk::Chunk;
 
+/// For converting from Rust types to Noms binary data
 pub trait IntoNoms {
+    /// Produces a unique binary representation of this value
     fn into_noms(&self) -> Vec<u8>;
 }
+/// For converting from Noms binary data to Rust types
 pub trait FromNoms<'a> {
+    /// Consumes a Chunk of data from the database and produces an actual usable value
     fn from_noms(&Chunk<'a>) -> Self;
 }
 
@@ -20,7 +25,7 @@ impl<'a> IntoNoms for Value<'a> {
         match self {
             &Value::Boolean(ok) => ok.into_noms(),
             // most encoders are in their own locations, except numbers are kind of special when
-            // stored raw from the database
+            // stored raw from the database. Maybe make a type for that too (`NomsNumber`)
             &Value::Number(i, e) => {
                 let mut bytes = Kind::Number.into_noms();
                 bytes.extend(varint::encode_u64(i));
@@ -29,7 +34,7 @@ impl<'a> IntoNoms for Value<'a> {
             }
             &Value::String(ref s) => s.into_noms(),
             &Value::Value(ref chunk) => chunk.data().clone(),
-            _ => vec![],
+            _ => unimplemented!("Trying to turn {:?} to bytes", self),
         }
     }
 }
@@ -72,16 +77,5 @@ impl IntoNoms for String {
 impl<'a> FromNoms<'a> for String {
     fn from_noms(chunk: &Chunk<'a>) -> Self {
         Value::from_noms(chunk).to_string().unwrap()
-    }
-}
-
-impl IntoNoms for Type {
-    fn into_noms(&self) -> Vec<u8> {
-        Value::Type(self.clone()).into_noms()
-    }
-}
-impl<'a> FromNoms<'a> for Type {
-    fn from_noms(chunk: &Chunk<'a>) -> Type {
-        Value::from_noms(chunk).to_type().unwrap()
     }
 }

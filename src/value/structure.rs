@@ -1,6 +1,7 @@
+//! The Noms Struct type
 use std::collections::HashMap;
 use chunk::Chunk;
-use super::{NomsValue, Value, FromNoms, IntoNoms};
+use super::{varint, NomsValue, Value, FromNoms, IntoNoms, Kind};
 
 pub trait NomsStruct<'a>: Sized {
     fn from_prop_list(props: HashMap<String, NomsValue<'a>>) -> Option<Self>;
@@ -15,12 +16,33 @@ pub(crate) struct Struct<'a> {
 impl<'a> Eq for Struct<'a> {}
 impl<'a> PartialEq for Struct<'a> {
     fn eq(&self, other: &Struct) -> bool {
-        false
+        self.name != other.name || self.props.len() != other.props.len() && {
+            for (key, value) in &self.props {
+                if other.props.get(key) != Some(value) {
+                    return false
+                }
+            }
+            true
+        }
     }
 }
 
-impl<'a> ::std::hash::Hash for Struct<'a> {
-    fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
+impl<'a> IntoNoms for Struct<'a> {
+    fn into_noms(&self) -> Vec<u8> {
+        let mut bytes = Kind::Struct.into_noms();
+        bytes.extend(varint::encode_u64(self.name.len() as u64));
+        bytes.extend(self.name.as_bytes());
+        bytes.extend(varint::encode_u64(self.props.len() as u64));
+        for (key, value) in &self.props {
+            bytes.extend(varint::encode_u64(key.len() as u64));
+            bytes.extend(key.as_bytes());
+            bytes.extend(value.into_noms());
+        }
+        bytes
+    }
+}
+impl<'a> FromNoms<'a> for Struct<'a> {
+    fn from_noms(_chunk: &Chunk) -> Self {
         unimplemented!();
     }
 }
@@ -29,7 +51,7 @@ impl<'a> ::std::hash::Hash for Struct<'a> {
 pub struct Empty;
 impl IntoNoms for Empty {
     fn into_noms(&self) -> Vec<u8> {
-        unimplemented!();
+        Struct{ name: "".to_string(), props: HashMap::new() }.into_noms()
     }
 }
 impl<'a> FromNoms<'a> for Empty {
