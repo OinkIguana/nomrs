@@ -36,7 +36,7 @@ impl<'a> NomsValue<'a> {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Value<'a> {
     Boolean(bool),
     Number(u64, u64),
@@ -56,18 +56,11 @@ pub(crate) enum Value<'a> {
 impl<'a> ::std::hash::Hash for Value<'a> {
     fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
         match self {
-            &Value::Ref(ref r) => { r.hash().hash(state); }
+            &Value::Ref(ref r) => { r.hash().hash(state); } // TODO: is this right?
             _ => { hash(&self.into_noms()).hash(state) }
         }
     }
 }
-
-impl<'a> PartialEq for Value<'a> {
-    fn eq(&self, other: &Self) -> bool {
-        unimplemented!()
-    }
-}
-impl<'a> Eq for Value<'a> {}
 
 impl<'a> Value<'a> {
     pub fn new(chunk: Chunk<'a>) -> Value<'a> {

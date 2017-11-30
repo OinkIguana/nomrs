@@ -76,7 +76,7 @@ impl super::ValueAccess for Database {
                     .run(self.client.post_get_refs(self, vec![r]))
                     .and_then(|mut v| v.remove(&r).ok_or(Error::NoValueForRef(r)))
                     .map(|v| self.add_to_cache(r.clone(), v))
-                    .map(|c| Chunk::new(self, c).reader().read_value())
+                    .map(|c| Chunk::new(self, c).reader().read_raw_value())
         }
     }
 }

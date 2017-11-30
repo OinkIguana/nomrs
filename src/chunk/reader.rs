@@ -113,7 +113,7 @@ impl<'a> ChunkReader<'a> {
         let mut props = HashMap::with_capacity(prop_count);
         for _ in 0..prop_count {
             let key = self.read_utf8();
-            let value = self.read_value();
+            let value = self.read_raw_value();
             props.insert(key, value.export());
         }
         Struct{ name, props }
@@ -154,6 +154,14 @@ impl<'a> ChunkReader<'a> {
             ),
         }
         self.chunk[offset..self.offset.get()].to_vec()
+    }
+
+    pub fn read_chunk(&self) -> Chunk<'a> {
+        Chunk::new(self.database.unwrap(), self.read_item())
+    }
+
+    pub fn read_raw_value(&self) -> Value<'a> {
+        Value::Value(self.read_chunk())
     }
 
     pub fn read_value(&self) -> Value<'a> {
@@ -208,7 +216,7 @@ impl<'a> ChunkReader<'a> {
             OrderedKey::by_hash(self.read_hash())
         } else {
             self.offset.set(offset);
-            OrderedKey::by_value(self.read_value())
+            OrderedKey::by_value(self.read_raw_value())
         }
     }
 

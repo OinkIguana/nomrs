@@ -13,6 +13,13 @@ pub struct Chunk<'a> {
     data: Vec<u8>
 }
 
+impl<'a> PartialEq for Chunk<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.data == other.data
+    }
+}
+impl<'a> Eq for Chunk<'a> {}
+
 impl<'a> Chunk<'a> {
     pub(crate) fn new(database: &'a ValueAccess, data: Vec<u8>) -> Self {
         Self { database: Some(database), data }
