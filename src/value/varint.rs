@@ -13,3 +13,8 @@ pub fn encode_u64(mut rem: u64) -> Vec<u8> {
     bytes.push(rem as u8);
     bytes
 }
+
+/// Encodes an i64 as a varint using zig-zag encoding.
+pub fn encode_i64(n: i64) -> Vec<u8> {
+    encode_u64(((n << 1) ^ (n >> 63)) as u64)
+}

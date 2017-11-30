@@ -100,12 +100,16 @@ impl<'a> ChunkReader<'a> {
         }
     }
 
+    fn read_signed_varint(&self) -> i64 {
+        let n = self.read_varint() as i64;
+        (n >> 1) * (-1 * (n & 1)) // TODO: is this the best way to write that?
+    }
+
     pub fn read_boolean(&self) -> bool {
         assert_eq!(Kind::Boolean, self.read_kind());
         self.read_u8() == 1
     }
 
-    // TODO: make this handle more arbitrary numbers
     pub fn read_number(&self) -> (u64, u64) {
         assert_eq!(Kind::Number, self.read_kind());
         (self.read_varint(), self.read_varint())
