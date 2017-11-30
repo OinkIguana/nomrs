@@ -109,3 +109,9 @@ where V: FromNoms<'a> + IntoNoms {
         }
     }
 }
+
+// impl<'a, T> FromNoms<'a> for Vec<T> {
+//     fn from_noms() {
+//
+//     }
+// }

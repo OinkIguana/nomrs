@@ -18,6 +18,8 @@ pub mod dataset;
 pub mod value;
 pub mod error;
 
+pub use database::Database;
+
 mod http;
 mod chunk;
 mod hash;

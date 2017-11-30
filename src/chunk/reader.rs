@@ -1,3 +1,4 @@
+//! Parse raw binary data into Noms values
 use database::ValueAccess;
 use hash::{Hash, BYTE_LEN};
 use value::{Value, Type, Kind, Ref, FromNoms, IntoNoms, Map, Set, List, MetaTuple, OrderedKey, Struct};
@@ -9,19 +10,23 @@ use std::collections::HashMap;
 use std::cell::Cell;
 use std::cmp::min;
 
-
 // TODO: there are a lot of unwrap calls on the self.database. I believe this should be impossible
 //       to get to the state where it is not unwrappable, but this is definitely something to be
 //       careful of, and could most likely be improved. As it is written, it's no better than null
 //       without null checks...
+
+/// A Chunk Reader takes in a series of bytes, and is able to create Noms values from that.
+/// Some Noms values need to be bound to a database, so the ChunkReader may be bound to a database
+/// as well. If it is not, certain operations may cause a panic.
 pub(crate) struct ChunkReader<'a> {
     database: Option<&'a ValueAccess>,
     chunk: Vec<u8>,
     offset: Cell<usize>,
 }
 
+const VARINT_CONTINUATION: u8 = 0b10000000;
 fn split_varint(i: u8) -> (bool, u64) {
-    (i & 0b10000000 == 1, (i & 0b01111111) as u64)
+    (i & VARINT_CONTINUATION == 1, (i & !VARINT_CONTINUATION) as u64)
 }
 
 impl<'a> ChunkReader<'a> {
@@ -231,8 +236,8 @@ impl<'a> ChunkReader<'a> {
     pub fn read_map<K: IntoNoms + FromNoms<'a> + Eq + ::std::hash::Hash, V: IntoNoms + FromNoms<'a>>(&self) -> Map<'a, K, V> {
         assert_eq!(Kind::Map, self.read_kind());
         self.read_sequence(|cr|
-                ( K::from_noms(&Chunk::new(cr.database.unwrap(), cr.read_item()))
-                , V::from_noms(&Chunk::new(cr.database.unwrap(), cr.read_item())))
+                ( K::from_noms(&cr.read_chunk())
+                , V::from_noms(&cr.read_chunk()))
             )
             .either(
                 |v| Map::from_values(self.database.unwrap(), v),
@@ -242,7 +247,7 @@ impl<'a> ChunkReader<'a> {
 
     pub fn read_set<V: IntoNoms + FromNoms<'a> + ::std::hash::Hash + Eq>(&self) -> Set<'a, V> {
         assert_eq!(Kind::Set, self.read_kind());
-        self.read_sequence(|cr| V::from_noms(&Chunk::new(cr.database.unwrap(), cr.read_item())))
+        self.read_sequence(|cr| V::from_noms(&cr.read_chunk()))
             .either(
                 |v| Set::from_values(self.database.unwrap(), v),
                 |mts| Set::from_metatuples(self.database.unwrap(), mts),
@@ -251,7 +256,7 @@ impl<'a> ChunkReader<'a> {
 
     pub fn read_list<V: IntoNoms + FromNoms<'a>>(&self) -> List<'a, V> {
         assert_eq!(Kind::List, self.read_kind());
-        self.read_sequence(|cr| V::from_noms(&Chunk::new(cr.database.unwrap(), cr.read_item())))
+        self.read_sequence(|cr| V::from_noms(&cr.read_chunk()))
             .either(
                 |v| List::from_values(self.database.unwrap(), v),
                 |mts| List::from_metatuples(self.database.unwrap(), mts),

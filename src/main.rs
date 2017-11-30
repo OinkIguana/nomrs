@@ -4,14 +4,15 @@
 extern crate nomrs;
 
 use std::collections::HashMap;
-use nomrs::Noms;
+use nomrs::{Noms, Database};
+use nomrs::value::{NomsList, Empty};
 
 fn main() {
     let noms = Noms::new();
     let db = noms.database()
-        .http("localhost:8000")
         .noms_version("7.18")
-        .build().unwrap();
+        .http("localhost:8000")
+        .unwrap();
     println!("{:?}", db.datasets().unwrap());
-    println!("{:?}", db.dataset("test").unwrap().head_value());
+    println!("{:?}", db.dataset::<Empty, NomsList>("test").unwrap().head_value());
 }

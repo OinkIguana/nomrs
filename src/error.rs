@@ -9,6 +9,7 @@ pub enum Error {
     NoDataset(String),
     NoValueForRef(Hash),
     ConversionError(String),
+    Unimplemented(String),
 }
 
 impl From<::hyper::Error> for Error {

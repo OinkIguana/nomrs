@@ -5,7 +5,7 @@ mod http;
 use std::cell::RefCell;
 use std::rc::Rc;
 use dataset::Dataset;
-use value::{NomsValue, Value, Ref, NomsMap};
+use value::{NomsValue, NomsStruct, Value, Ref, NomsMap, FromNoms, IntoNoms};
 use error::Error;
 use hash::Hash;
 use InnerNoms;
@@ -42,7 +42,8 @@ pub trait Database {
     /// ID of the dataset.
     fn datasets(&self) -> Result<NomsMap<String, Ref>, Error>;
     /// Gets the Dataset corresponding to the given ds dataset ID from the datasets map.
-    fn dataset(&self, ds: &str) -> Result<Dataset, Error>;
+    fn dataset<'a, M, V>(&'a self, ds: &str) -> Result<Dataset<M, V>, Error>
+    where M: FromNoms<'a> + IntoNoms + NomsStruct<'a>, V: FromNoms<'a> + IntoNoms, Self: Sized;
     fn rebase(&self);
     fn commit(&self, ds: Dataset, v: NomsValue, o: CommitOptions) -> Result<Dataset, Error>;
     fn commit_value(&self, ds: Dataset, v: NomsValue) -> Result<Dataset, Error>;
@@ -60,33 +61,25 @@ pub(crate) trait ValueAccess: Database + ::std::fmt::Debug {
 
 /// Used to construct a new connection to the database
 pub struct DatabaseBuilder {
-    protocol: Protocol,
-    database: String,
     version: String,
     noms: Rc<RefCell<InnerNoms>>,
 }
 
 impl DatabaseBuilder {
     pub(crate) fn new(noms: Rc<RefCell<InnerNoms>>) -> Self {
-        DatabaseBuilder{ noms, protocol: Protocol::Http, database: "".to_string(), version: DEFAULT_VERSION.to_string() }
+        DatabaseBuilder{ noms, version: DEFAULT_VERSION.to_string() }
     }
     /// Creates a new connection to an HTTP database
-    pub fn http(self, database: &str) -> Self {
-        Self{ protocol: Protocol::Http, database: database.to_string(), ..self }
+    pub fn http(self, database: &str) -> Result<http::Database, Error> {
+        Ok(http::Database::new(self.noms, database.to_string(), self.version)?)
     }
     /// Creates a new connection to an HTTPS database
-    pub fn https(self, database: &str) -> Self {
-        Self{ protocol: Protocol::Https, database: database.to_string(), ..self }
+    pub fn https(self, database: &str) -> Result<http::Database, Error> {
+        Err(Error::Unimplemented("HTTPS connections are not implemented".to_string()))
     }
+
     /// Sets the Noms version number, required for the request header
     pub fn noms_version(self, version: &str) -> Self {
         Self{ version: version.to_string(), ..self }
-    }
-    /// Constructs the actual database, returning any errors that may occur
-    pub fn build(self) -> Result<Box<Database>, Error> {
-        match self.protocol {
-            Protocol::Http => Ok(Box::new(http::Database::new(self.noms, self.database, self.version)?)),
-            Protocol::Https => unimplemented!(),
-        }
     }
 }

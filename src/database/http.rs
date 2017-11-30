@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 use super::{CommitOptions, ValueAccess};
-use value::{NomsValue, Value, Ref, FromNoms, IntoNoms, NomsMap};
+use value::{NomsValue, NomsStruct, Value, Ref, FromNoms, IntoNoms, NomsMap};
 use dataset::Dataset;
 use error::Error;
 use http::Client;
@@ -50,7 +50,8 @@ impl super::Database for Database {
                 .and_then(|v| v.to_map().ok_or(Error::ConversionError("Value is not a map".to_string())))
         }
     }
-    fn dataset<'a>(&'a self, ds: &str) -> Result<Dataset<'a>, Error> {
+    fn dataset<'a, M, V>(&'a self, ds: &str) -> Result<Dataset<'a, M, V>, Error>
+    where M: FromNoms<'a> + IntoNoms + NomsStruct<'a>, V: FromNoms<'a> + IntoNoms, Self: Sized {
         let r = self.datasets()?
             .get(ds)
             .ok_or_else(|| Error::NoDataset(ds.to_string()))?
