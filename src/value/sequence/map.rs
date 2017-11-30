@@ -93,7 +93,7 @@ where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms {
 
 impl<'a, K, V> PartialEq for Map<'a, K, V>
 where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(&self, _other: &Self) -> bool {
         unimplemented!();
     }
 }
@@ -102,7 +102,7 @@ where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms {}
 
 impl<'a, K, V> ::std::hash::Hash for Map<'a, K, V>
 where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms {
-    fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: ::std::hash::Hasher>(&self, _state: &mut H) {
         unimplemented!();
     }
 }

@@ -67,17 +67,25 @@ impl super::Database for Database {
 }
 
 impl super::ValueAccess for Database {
-    fn get_value(&self, r: Hash) -> Result<Value, Error> {
-        let cached = self.cache.borrow().get(&r).cloned();
-        match cached {
-            Some(data) => Ok(Value::from_noms(&Chunk::new(self, data))),
-            None =>
-                self.noms.borrow_mut()
-                    .event_loop
-                    .run(self.client.post_get_refs(self, vec![r]))
-                    .and_then(|mut v| v.remove(&r).ok_or(Error::NoValueForRef(r)))
-                    .map(|v| self.add_to_cache(r.clone(), v))
-                    .map(|c| Chunk::new(self, c).reader().read_raw_value())
+    fn get_values(&self, hashes: Vec<Hash>) -> Result<HashMap<Hash, Value>, Error> {
+        let lookups = hashes.iter().filter(|h| !self.cache.borrow().contains_key(h)).cloned().collect();
+        for (key, value) in
+            self.noms.borrow_mut()
+                .event_loop
+                .run(self.client.post_get_refs(self, lookups))? {
+            self.add_to_cache(key.clone(), value);
         }
+        let cache = self.cache.borrow();
+        Ok(
+            hashes
+                .into_iter()
+                .map(|k| cache
+                    .get(&k)
+                    .clone()
+                    .map(|v| (k, Value::from_noms(&Chunk::new(self, v.clone()))))
+                    .unwrap()
+                )
+                .collect()
+        )
     }
 }

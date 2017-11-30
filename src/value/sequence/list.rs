@@ -1,6 +1,5 @@
-use super::{NomsValue, Value, Ref, FromNoms, IntoNoms, MetaTuple, Collection};
+use super::{NomsValue, Value, FromNoms, IntoNoms, MetaTuple, Collection};
 use database::ValueAccess;
-use std::collections::HashMap;
 use chunk::Chunk;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -8,13 +7,17 @@ pub struct NomsList<'a, V = NomsValue<'a>>(List<'a, V>)
 where V: FromNoms<'a> + IntoNoms;
 
 impl<'a, V> NomsList<'a, V>
-where V: FromNoms<'a> + IntoNoms {
+where V: FromNoms<'a> + IntoNoms + Clone {
     pub(crate) fn new(db: &'a ValueAccess) -> Self {
         NomsList(List::new(db))
     }
 
     pub(crate) fn from_list(list: List<'a, V>) -> Self {
         NomsList(list)
+    }
+
+    pub fn to_vec(&self) -> Vec<V> {
+        self.0.to_vec()
     }
 }
 
@@ -24,7 +27,6 @@ where V: FromNoms<'a> + IntoNoms {
     Inner{
         database: &'a ValueAccess,
         raw: Vec<MetaTuple<'a>>,
-        cache: HashMap<Ref<'a>, List<'a, V>>,
     },
     Leaf{
         database: &'a ValueAccess,
@@ -42,7 +44,6 @@ where V: FromNoms<'a> + IntoNoms {
         List::Inner {
             database,
             raw,
-            cache: HashMap::new(),
         }
     }
 
@@ -56,17 +57,27 @@ where V: FromNoms<'a> + IntoNoms {
     pub fn transform<V2>(self) -> List<'a, V2>
     where V2: FromNoms<'a> + IntoNoms {
         match self {
-            List::Inner{ database, raw, cache } =>
+            List::Inner{ database, raw } =>
                 List::Inner {
                     database,
                     raw,
-                    cache: cache.into_iter().map(|(k, v)| (k, v.transform())).collect(),
                 },
             List::Leaf{ database, cache } =>
                 List::Leaf {
                     database,
                     cache: cache.into_iter().map(|v| V2::from_noms(&Chunk::new(database, v.into_noms()))).collect(),
                 },
+        }
+    }
+
+    fn to_vec(&self) -> Vec<V> {
+        match self {
+            &List::Leaf{ ref cache, .. } => cache.clone(),
+            &List::Inner{ ref raw, .. } => {
+                let mut values: Vec<_> = self.resolve_all(raw).unwrap().into_iter().collect();
+                values.sort_by(|&(ref a, _), &(ref b, _)| a.cmp(b));
+                values.into_iter().map(|(_, v)| v).collect()
+            }
         }
     }
 }
@@ -109,9 +120,3 @@ where V: FromNoms<'a> + IntoNoms {
         }
     }
 }
-
-// impl<'a, T> FromNoms<'a> for Vec<T> {
-//     fn from_noms() {
-//
-//     }
-// }

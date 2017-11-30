@@ -20,7 +20,7 @@ pub const STRING_LEN: usize = 32;
 
 pub const EMPTY_HASH: Hash = Hash([0; BYTE_LEN]);
 /// Representation of a hash
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Ord, PartialOrd)]
 pub struct Hash([u8; BYTE_LEN]);
 impl Hash {
     pub fn new(v: [u8; BYTE_LEN]) -> Self { Hash(v) }

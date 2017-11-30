@@ -8,7 +8,7 @@ pub trait IntoNoms {
     fn into_noms(&self) -> Vec<u8>;
 }
 /// For converting from Noms binary data to Rust types
-pub trait FromNoms<'a> {
+pub trait FromNoms<'a>: Clone {
     /// Consumes a Chunk of data from the database and produces an actual usable value
     fn from_noms(&Chunk<'a>) -> Self;
 }

@@ -21,7 +21,8 @@ pub(crate) use self::collection::Collection;
 pub(crate) use self::structure::{NomsStruct, Struct};
 
 use chunk::Chunk;
-use hash::hash;
+use hash::{hash, Hash};
+use std::cmp::Ordering;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct NomsValue<'a>(Value<'a>);
@@ -53,11 +54,34 @@ pub(crate) enum Value<'a> {
     Nil,
 }
 
+impl<'a> Ord for Value<'a> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        use self::Value::*;
+        match (self, other) {
+            (&Boolean(a), &Boolean(b)) => a.cmp(&b),
+            (&Number(a1, a2), &Number(b1, b2)) => (a1 as f64).powi(a2 as i32).partial_cmp(&(b1 as f64).powi(b2 as i32)).unwrap(),
+            (&String(ref a), &String(ref b)) => a.cmp(b),
+            (&Boolean(_), _) => Ordering::Less,
+            (_, &Boolean(_)) => Ordering::Greater,
+            (&Number(_, _), _) => Ordering::Less,
+            (_, &Number(_, _)) => Ordering::Greater,
+            (&String(_), _) => Ordering::Less,
+            (_, &String(_)) => Ordering::Greater,
+            (_, _) => self.compute_hash().cmp(&other.compute_hash())
+        }
+    }
+}
+impl<'a> PartialOrd<Self> for Value<'a> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl<'a> ::std::hash::Hash for Value<'a> {
     fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
         match self {
             &Value::Ref(ref r) => { r.hash().hash(state); } // TODO: is this right?
-            _ => { hash(&self.into_noms()).hash(state) }
+            _ => { self.compute_hash().hash(state) }
         }
     }
 }
@@ -73,6 +97,10 @@ impl<'a> Value<'a> {
 }
 
 impl<'a> Value<'a> {
+    pub fn compute_hash(&self) -> Hash {
+        hash(&self.into_noms())
+    }
+
     pub fn is_bool(&self) -> bool {
         match self {
             &Value::Boolean(_) => true,

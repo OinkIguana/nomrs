@@ -9,6 +9,7 @@ use value::{NomsValue, NomsStruct, Value, Ref, NomsMap, FromNoms, IntoNoms};
 use error::Error;
 use hash::Hash;
 use InnerNoms;
+use std::collections::HashMap;
 
 const DEFAULT_VERSION: &'static str = "7.18";
 const UNSUPPORTED: &'static str = "Unsupported";
@@ -55,8 +56,13 @@ pub trait Database {
     fn stats_summary(&self) -> String { UNSUPPORTED.to_string() }
 }
 
+// TODO: this debug thing is just for compiling during development... fix it later. It should not
+//       be a requirement
 pub(crate) trait ValueAccess: Database + ::std::fmt::Debug {
-    fn get_value(&self, Hash) -> Result<Value, Error>;
+    fn get_value(&self, h: Hash) -> Result<Value, Error> {
+        self.get_values(vec![h]).map(|mut v| v.remove(&h).unwrap())
+    }
+    fn get_values(&self, Vec<Hash>) -> Result<HashMap<Hash, Value>, Error>;
 }
 
 /// Used to construct a new connection to the database

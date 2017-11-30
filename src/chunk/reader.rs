@@ -26,7 +26,7 @@ pub(crate) struct ChunkReader<'a> {
 
 const VARINT_CONTINUATION: u8 = 0b10000000;
 fn split_varint(i: u8) -> (bool, u64) {
-    (i & VARINT_CONTINUATION == 1, (i & !VARINT_CONTINUATION) as u64)
+    (i & VARINT_CONTINUATION == VARINT_CONTINUATION, (i & !VARINT_CONTINUATION) as u64)
 }
 
 impl<'a> ChunkReader<'a> {
