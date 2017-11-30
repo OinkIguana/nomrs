@@ -4,6 +4,8 @@
 //! TODO: documentation
 //! TODO: examples
 
+#![feature(associated_consts)]
+
 #[macro_use] extern crate lazy_static;
 extern crate byteorder;
 extern crate crypto;
@@ -18,7 +20,9 @@ pub mod dataset;
 pub mod value;
 pub mod error;
 
+// TODO: make a prelude of some sort...
 pub use database::Database;
+pub use chunk::Chunk;
 
 mod http;
 mod chunk;

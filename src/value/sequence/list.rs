@@ -76,7 +76,7 @@ where V: FromNoms<'a> + IntoNoms {
             &List::Inner{ ref raw, .. } => {
                 let mut values: Vec<_> = self.resolve_all(raw).unwrap().into_iter().collect();
                 values.sort_by(|&(ref a, _), &(ref b, _)| a.cmp(b));
-                values.into_iter().map(|(_, v)| v).collect()
+                values.into_iter().flat_map(|(_, v)| v.to_vec()).collect()
             }
         }
     }
@@ -111,7 +111,7 @@ where V: FromNoms<'a> + IntoNoms {
     }
 }
 
-impl<'a, V> Collection<'a, V> for List<'a, V>
+impl<'a, V> Collection<'a, NomsList<'a, V>> for List<'a, V>
 where V: FromNoms<'a> + IntoNoms {
     fn database(&self) -> &'a ValueAccess {
         match self {

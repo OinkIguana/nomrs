@@ -4,7 +4,10 @@ use chunk::Chunk;
 use super::{varint, NomsValue, Value, FromNoms, IntoNoms, Kind};
 
 pub trait NomsStruct<'a>: Sized {
+    const NAME: &'static str;
+
     fn from_prop_list(props: HashMap<String, NomsValue<'a>>) -> Option<Self>;
+    fn to_prop_list(&self) -> HashMap<String, NomsValue<'a>>;
 }
 
 #[derive(Clone, Debug)]
@@ -60,5 +63,7 @@ impl<'a> FromNoms<'a> for Empty {
     }
 }
 impl<'a> NomsStruct<'a> for Empty {
-    fn from_prop_list(_: HashMap<String, NomsValue>) -> Option<Self> { Some(Empty) }
+    const NAME: &'static str = "";
+    fn from_prop_list(_: HashMap<String, NomsValue<'a>>) -> Option<Self> { Some(Empty) }
+    fn to_prop_list(&self) -> HashMap<String, NomsValue<'a>> { HashMap::new() }
 }

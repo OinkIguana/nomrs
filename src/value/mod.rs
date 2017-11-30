@@ -12,13 +12,13 @@ pub use self::kind::Type;
 pub use self::reference::Ref;
 pub use self::commit::Commit;
 pub use self::sequence::{NomsMap, NomsSet, NomsList};
-pub use self::structure::Empty;
+pub use self::structure::{NomsStruct, Empty};
+pub use self::conversion::{IntoNoms, FromNoms};
 
 pub(crate) use self::sequence::{MetaTuple, OrderedKey, Map, Set, List};
-pub(crate) use self::conversion::{IntoNoms, FromNoms};
 pub(crate) use self::kind::Kind;
 pub(crate) use self::collection::Collection;
-pub(crate) use self::structure::{NomsStruct, Struct};
+pub(crate) use self::structure::Struct;
 
 use chunk::Chunk;
 use hash::{hash, Hash};
@@ -32,6 +32,10 @@ impl<'a> NomsValue<'a> {
         self.0
     }
 
+    // TODO: is auto transform possible at all??
+    pub fn transform_struct<T: NomsStruct<'a>>(self) -> T {
+        self.import().to_struct().unwrap()
+    }
     pub fn transform<T: FromNoms<'a>>(self) -> T {
         T::from_noms(&self.import().to_chunk())
     }
@@ -125,7 +129,7 @@ impl<'a> Value<'a> {
     }
     pub fn to_u64(self) -> Option<u64> {
         match self {
-            Value::Number(i, e) => Some(i * 2u64.pow(3 as u32)),
+            Value::Number(i, e) => Some(i * 2u64.pow(e as u32)),
             Value::Value(_) => self.compile().to_u64(),
             _ => None,
         }

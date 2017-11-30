@@ -37,20 +37,19 @@ where M: IntoNoms + FromNoms<'a> + NomsStruct<'a>, V: IntoNoms + FromNoms<'a> {
 
 impl<'a, M, V> NomsStruct<'a> for Commit<'a, M, V>
 where M: IntoNoms + FromNoms<'a> + NomsStruct<'a>, V: IntoNoms + FromNoms<'a> {
+    const NAME: &'static str = "Commit";
+
     fn from_prop_list(mut props: HashMap<String, NomsValue<'a>>) -> Option<Self> {
-        let meta = props.remove("meta");
-        let parents = props.remove("parents");
-        let value = props.remove("value");
-        match (meta, parents, value) {
-            (Some(meta), Some(parents), Some(value)) =>
-                Some(
-                    Self {
-                        meta: meta.import().to_struct().unwrap(),
-                        parents: parents.import().to_set().unwrap(),
-                        value: value.transform(), // TODO: noms internal translation
-                    }
-                ),
-            _ => None,
-        }
+        Some(
+            Self {
+                meta: props.remove("meta")?.import().to_struct().unwrap(),
+                parents: props.remove("parents")?.import().to_set().unwrap(),
+                value: props.remove("value")?.transform(), // TODO: noms internal translation
+            }
+        )
+    }
+
+    fn to_prop_list(&self) -> HashMap<String, NomsValue<'a>> {
+        HashMap::new()
     }
 }
