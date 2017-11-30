@@ -1,5 +1,5 @@
 //! Defines all the Noms types (kinds), and the Noms Type type
-use super::{IntoNoms, FromNoms, Value};
+use super::{IntoNoms, FromNoms, Value, varint};
 use chunk::Chunk;
 
 /// A C-Style enum, which must continue to be in the same order as the NomsKind enum in the
@@ -56,6 +56,38 @@ enum TypeDesc {
         optional: Vec<bool>,
     }
 }
+impl TypeDesc {
+    fn to_bytes(&self) -> Vec<u8> {
+        match self {
+            &TypeDesc::Primitive => vec![],
+            &TypeDesc::Compound(ref types) => {
+                let mut bytes = if types.len() > 1 {
+                    varint::encode_u64(types.len() as u64)
+                } else { vec![] };
+                for t in types {
+                    bytes.extend(t.desc.to_bytes());
+                }
+                bytes
+            }
+            &TypeDesc::Struct{ ref name, ref keys, ref types, ref optional } => {
+                let mut bytes = varint::encode_u64(name.len() as u64);
+                bytes.extend(name.as_bytes());
+                bytes.extend(varint::encode_u64(keys.len() as u64));
+                for key in keys {
+                    bytes.extend(varint::encode_u64(key.len() as u64));
+                    bytes.extend(key.as_bytes());
+                }
+                for t in types {
+                    bytes.extend(t.to_bytes());
+                }
+                for o in optional {
+                    bytes.push(if *o { 1 } else { 0 });
+                }
+                bytes
+            }
+        }
+    }
+}
 
 /// The Noms Type type. Consists of a basic Noms kind, and a type description describing the
 /// structure of more complex kinds of data.
@@ -94,13 +126,22 @@ impl Type {
             desc: TypeDesc::Struct { name, keys, types, optional },
         }
     }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = vec![self.kind as u8];
+        bytes.extend(self.desc.to_bytes());
+        bytes
+    }
 }
 
 impl IntoNoms for Type {
     fn into_noms(&self) -> Vec<u8> {
-        Value::Type(self.clone()).into_noms()
+        let mut bytes = Kind::Type.into_noms();
+        bytes.extend(self.to_bytes());
+        bytes
     }
 }
+
 impl<'a> FromNoms<'a> for Type {
     fn from_noms(chunk: &Chunk<'a>) -> Type {
         Value::from_noms(chunk).to_type().unwrap()

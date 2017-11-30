@@ -1,5 +1,5 @@
 //! The Noms Reference type
-use super::{Type, Value, IntoNoms, FromNoms, Collection};
+use super::{Kind, Type, Value, IntoNoms, FromNoms, Collection};
 use database::ValueAccess;
 use hash::{Hash, EMPTY_HASH};
 use chunk::Chunk;
@@ -57,7 +57,10 @@ impl<'a> ::std::hash::Hash for Ref<'a> {
 
 impl<'a> IntoNoms for Ref<'a> {
     fn into_noms(&self) -> Vec<u8> {
-        Value::Ref(self.clone()).into_noms()
+        let mut bytes = Kind::Ref.into_noms();
+        bytes.extend_from_slice(&self.hash.raw_bytes());
+        bytes.extend(self.value_type.into_noms());
+        bytes
     }
 }
 

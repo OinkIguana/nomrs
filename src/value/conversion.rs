@@ -34,6 +34,7 @@ impl<'a> IntoNoms for Value<'a> {
             }
             &Value::String(ref s) => s.into_noms(),
             &Value::Value(ref chunk) => chunk.data().clone(),
+            &Value::Ref(ref reference) => reference.into_noms(),
             _ => unimplemented!("Trying to turn {:?} to bytes", self),
         }
     }
