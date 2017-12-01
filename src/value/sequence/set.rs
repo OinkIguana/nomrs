@@ -13,8 +13,13 @@ where V: Eq + Hash + FromNoms<'a> + IntoNoms {
     pub(crate) fn new(db: &'a ValueAccess) -> Self {
         NomsSet(Set::new(db))
     }
+
     pub(crate) fn from_set(set: Set<'a, V>) -> Self {
         NomsSet(set)
+    }
+
+    pub fn to_set(&self) -> HashSet<V> {
+        self.0.to_set()
     }
 }
 
@@ -62,6 +67,19 @@ where V: FromNoms<'a> + IntoNoms + Eq + Hash{
         }
     }
 
+    pub fn to_set(&self) -> HashSet<V> {
+        match self {
+            &Set::Leaf{ ref cache, .. } => cache.clone(),
+            &Set::Inner{ ref raw, .. } =>
+                self
+                    .resolve_all(raw)
+                    .unwrap()
+                    .into_iter()
+                    .flat_map(|v| v.to_set())
+                    .collect()
+        }
+    }
+
     pub fn transform<V2>(self) -> Set<'a, V2>
     where V2: FromNoms<'a> + IntoNoms + Eq + Hash {
         match self {
@@ -100,7 +118,7 @@ where V: FromNoms<'a> + IntoNoms + Hash + Eq {
     }
 }
 
-impl<'a, V> Collection<'a, V> for Set<'a, V>
+impl<'a, V> Collection<'a, NomsSet<'a, V>> for Set<'a, V>
 where V: FromNoms<'a> + IntoNoms + Hash + Eq {
     fn database(&self) -> &'a ValueAccess {
         match self {

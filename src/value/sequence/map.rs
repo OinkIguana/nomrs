@@ -18,6 +18,10 @@ where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms {
         NomsMap(map)
     }
 
+    pub fn to_map(&self) -> HashMap<K, V> {
+        self.0.to_map()
+    }
+
     pub fn get<Q: ?Sized + Hash + Eq>(&self, key: &Q) -> Option<&V>
     where K: ::std::borrow::Borrow<Q> {
         self.0.get(key)
@@ -82,6 +86,19 @@ where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms {
         }
     }
 
+    pub fn to_map(&self) -> HashMap<K, V> {
+        match self {
+            &Map::Leaf{ ref cache, .. } => cache.clone(),
+            &Map::Inner{ ref raw, .. } =>
+                self
+                    .resolve_all(raw)
+                    .unwrap()
+                    .into_iter()
+                    .flat_map(|v| v.to_map())
+                    .collect()
+        }
+    }
+
     pub fn get<Q: ?Sized + Hash + Eq>(&self, key: &Q) -> Option<&V>
     where K: ::std::borrow::Borrow<Q> {
         match self {
@@ -120,7 +137,7 @@ where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms {
     }
 }
 
-impl<'a, K, V> Collection<'a, V> for Map<'a, K, V>
+impl<'a, K, V> Collection<'a, NomsMap<'a, K, V>> for Map<'a, K, V>
 where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms {
     fn database(&self) -> &'a ValueAccess {
         match self {

@@ -1,10 +1,11 @@
 //! This main function serves as a playground to test the library. Soon it will be replaced by
 //! actual test suites
+//!
+//! The derive crate needs real some tests too.
 
 extern crate nomrs;
 #[macro_use] extern crate nomrs_derive;
 
-use std::collections::HashMap;
 use nomrs::{Noms, Database};
 use nomrs::value::{NomsList, Empty};
 
