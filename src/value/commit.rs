@@ -49,7 +49,7 @@ where M: IntoNoms + FromNoms<'a> + NomsStruct<'a>, V: IntoNoms + FromNoms<'a> {
         )
     }
 
-    fn to_prop_list(&self) -> HashMap<String, NomsValue<'a>> {
+    fn to_prop_list(&self) -> HashMap<String, Vec<u8>> {
         HashMap::new()
     }
 }

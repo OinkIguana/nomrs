@@ -7,7 +7,7 @@ pub trait NomsStruct<'a>: Sized {
     const NAME: &'static str;
 
     fn from_prop_list(props: HashMap<String, NomsValue<'a>>) -> Option<Self>;
-    fn to_prop_list(&self) -> HashMap<String, NomsValue<'a>>;
+    fn to_prop_list(&self) -> HashMap<String, Vec<u8>>;
 }
 
 #[derive(Clone, Debug)]
@@ -65,5 +65,5 @@ impl<'a> FromNoms<'a> for Empty {
 impl<'a> NomsStruct<'a> for Empty {
     const NAME: &'static str = "";
     fn from_prop_list(_: HashMap<String, NomsValue<'a>>) -> Option<Self> { Some(Empty) }
-    fn to_prop_list(&self) -> HashMap<String, NomsValue<'a>> { HashMap::new() }
+    fn to_prop_list(&self) -> HashMap<String, Vec<u8>> { HashMap::new() }
 }

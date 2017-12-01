@@ -12,3 +12,4 @@ tokio-core = "0.1"
 data-encoding = "2.0.0"
 lazy_static = "0.2.0"
 either = "1.4"
+nomrs-derive = { git = "https://github.com/oinkiguana/nomrs-derive" }
