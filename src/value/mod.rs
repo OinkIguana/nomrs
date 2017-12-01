@@ -41,10 +41,21 @@ impl<'a> NomsValue<'a> {
     }
 }
 
+impl<'a> IntoNoms for NomsValue<'a> {
+    fn into_noms(&self) -> Vec<u8> {
+        self.0.into_noms()
+    }
+}
+impl<'a> FromNoms<'a> for NomsValue<'a> {
+    fn from_noms(chunk: &Chunk<'a>) -> Self {
+        NomsValue(Value::from_noms(chunk))
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Value<'a> {
     Boolean(bool),
-    Number(u64, u64),
+    Number(i64, i64),
     String(String),
     Blob(Vec<u8>),
     Value(Chunk<'a>), // TODO: is this just unknown value representation?
@@ -58,38 +69,6 @@ pub(crate) enum Value<'a> {
     Nil,
 }
 
-impl<'a> Ord for Value<'a> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        use self::Value::*;
-        match (self, other) {
-            (&Boolean(a), &Boolean(b)) => a.cmp(&b),
-            (&Number(a1, a2), &Number(b1, b2)) => (a1 as f64).powi(a2 as i32).partial_cmp(&(b1 as f64).powi(b2 as i32)).unwrap(),
-            (&String(ref a), &String(ref b)) => a.cmp(b),
-            (&Boolean(_), _) => Ordering::Less,
-            (_, &Boolean(_)) => Ordering::Greater,
-            (&Number(_, _), _) => Ordering::Less,
-            (_, &Number(_, _)) => Ordering::Greater,
-            (&String(_), _) => Ordering::Less,
-            (_, &String(_)) => Ordering::Greater,
-            (_, _) => self.compute_hash().cmp(&other.compute_hash())
-        }
-    }
-}
-impl<'a> PartialOrd<Self> for Value<'a> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl<'a> ::std::hash::Hash for Value<'a> {
-    fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
-        match self {
-            &Value::Ref(ref r) => { r.hash().hash(state); } // TODO: is this right?
-            _ => { self.compute_hash().hash(state) }
-        }
-    }
-}
-
 impl<'a> Value<'a> {
     pub fn new(chunk: Chunk<'a>) -> Value<'a> {
         Value::Value(chunk)
@@ -98,9 +77,7 @@ impl<'a> Value<'a> {
     pub fn export(self) -> NomsValue<'a> {
         NomsValue(self)
     }
-}
 
-impl<'a> Value<'a> {
     pub fn compute_hash(&self) -> Hash {
         hash(&self.into_noms())
     }
@@ -129,7 +106,7 @@ impl<'a> Value<'a> {
     }
     pub fn to_u64(self) -> Option<u64> {
         match self {
-            Value::Number(i, e) => Some(i * 2u64.pow(e as u32)),
+            Value::Number(i, e) => Some(i as u64 * 2u64.pow(e as u32)),
             Value::Value(_) => self.compile().to_u64(),
             _ => None,
         }
@@ -262,13 +239,34 @@ impl<'a> Value<'a> {
     }
 }
 
-impl<'a> IntoNoms for NomsValue<'a> {
-    fn into_noms(&self) -> Vec<u8> {
-        self.0.into_noms()
+impl<'a> Ord for Value<'a> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        use self::Value::*;
+        match (self, other) {
+            (&Boolean(a), &Boolean(b)) => a.cmp(&b),
+            (&Number(a1, a2), &Number(b1, b2)) => ((a1 as f64) * 2f64.powi(a2 as i32)).partial_cmp(&((b1 as f64) * 2f64.powi(b2 as i32))).unwrap(),
+            (&String(ref a), &String(ref b)) => a.cmp(b),
+            (&Boolean(_), _) => Ordering::Less,
+            (_, &Boolean(_)) => Ordering::Greater,
+            (&Number(_, _), _) => Ordering::Less,
+            (_, &Number(_, _)) => Ordering::Greater,
+            (&String(_), _) => Ordering::Less,
+            (_, &String(_)) => Ordering::Greater,
+            (_, _) => self.compute_hash().cmp(&other.compute_hash())
+        }
     }
 }
-impl<'a> FromNoms<'a> for NomsValue<'a> {
-    fn from_noms(chunk: &Chunk<'a>) -> Self {
-        NomsValue(Value::from_noms(chunk))
+impl<'a> PartialOrd<Self> for Value<'a> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<'a> ::std::hash::Hash for Value<'a> {
+    fn hash<H: ::std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            &Value::Ref(ref r) => { r.hash().hash(state); } // TODO: is this right?
+            _ => { self.compute_hash().hash(state) }
+        }
     }
 }

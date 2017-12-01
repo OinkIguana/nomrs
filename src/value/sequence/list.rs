@@ -73,11 +73,13 @@ where V: FromNoms<'a> + IntoNoms {
     fn to_vec(&self) -> Vec<V> {
         match self {
             &List::Leaf{ ref cache, .. } => cache.clone(),
-            &List::Inner{ ref raw, .. } => {
-                let mut values: Vec<_> = self.resolve_all(raw).unwrap().into_iter().collect();
-                values.sort_by(|&(ref a, _), &(ref b, _)| a.cmp(b));
-                values.into_iter().flat_map(|(_, v)| v.to_vec()).collect()
-            }
+            &List::Inner{ ref raw, .. } =>
+                self
+                    .resolve_all(raw)
+                    .unwrap()
+                    .into_iter()
+                    .flat_map(|v| v.to_vec())
+                    .collect()
         }
     }
 }

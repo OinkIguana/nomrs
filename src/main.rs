@@ -1,18 +1,16 @@
 //! This main function serves as a playground to test the library. Soon it will be replaced by
 //! actual test suites
 
-#![feature(associated_consts)]
-
 extern crate nomrs;
 
 use std::collections::HashMap;
 use nomrs::{Noms, Database, Chunk};
 use nomrs::value::{FromNoms, IntoNoms, NomsStruct, NomsValue, NomsList, Empty};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 struct Row {
-    count_female: u64,
-    count_male: u64,
+    count_female: String,
+    count_male: String,
 }
 // TODO: make a derivation for these
 impl<'a> FromNoms<'a> for Row {
@@ -28,7 +26,6 @@ impl IntoNoms for Row {
 impl<'a> NomsStruct<'a> for Row {
     const NAME: &'static str = "Row";
     fn from_prop_list(mut props: HashMap<String, NomsValue<'a>>) -> Option<Self> {
-        println!("{:?}", props);
         Some(Row{
             count_male: props.remove("countMale")?.transform(),
             count_female: props.remove("countFemale")?.transform(),

@@ -110,9 +110,9 @@ impl<'a> ChunkReader<'a> {
         self.read_u8() == 1
     }
 
-    pub fn read_number(&self) -> (u64, u64) {
+    pub fn read_number(&self) -> (i64, i64) {
         assert_eq!(Kind::Number, self.read_kind());
-        (self.read_varint(), self.read_varint())
+        (self.read_signed_varint(), self.read_signed_varint())
     }
 
     pub fn read_struct(&self) -> Struct<'a> {

@@ -4,8 +4,6 @@
 //! TODO: documentation
 //! TODO: examples
 
-#![feature(associated_consts)]
-
 #[macro_use] extern crate lazy_static;
 extern crate byteorder;
 extern crate crypto;

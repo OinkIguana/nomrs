@@ -8,7 +8,7 @@ pub trait IntoNoms {
     fn into_noms(&self) -> Vec<u8>;
 }
 /// For converting from Noms binary data to Rust types
-pub trait FromNoms<'a>: Clone {
+pub trait FromNoms<'a>: ::std::fmt::Debug + Clone {
     /// Consumes a Chunk of data from the database and produces an actual usable value
     fn from_noms(&Chunk<'a>) -> Self;
 }
@@ -28,8 +28,8 @@ impl<'a> IntoNoms for Value<'a> {
             // stored raw from the database. Maybe make a type for that too (`NomsNumber`)
             &Value::Number(i, e) => {
                 let mut bytes = Kind::Number.into_noms();
-                bytes.extend(varint::encode_u64(i));
-                bytes.extend(varint::encode_u64(e));
+                bytes.extend(varint::encode_i64(i));
+                bytes.extend(varint::encode_i64(e));
                 bytes
             }
             &Value::String(ref s) => s.into_noms(),
