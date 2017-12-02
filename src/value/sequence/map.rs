@@ -22,6 +22,7 @@ where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms {
         self.0.to_map()
     }
 
+    // TODO: make some way to use these collections without loading the entire thing into memory
     pub fn get<Q: ?Sized + Hash + Eq>(&self, key: &Q) -> Option<&V>
     where K: ::std::borrow::Borrow<Q> {
         self.0.get(key)

@@ -23,4 +23,5 @@ fn main() {
         .unwrap();
     println!("{:?}", db.datasets().unwrap());
     println!("{:?}", db.dataset::<Empty, NomsList<Row>>("test").unwrap().head_value().unwrap().to_vec());
+    println!("{:?}", db.value_from("Hello world"));
 }

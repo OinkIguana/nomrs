@@ -102,7 +102,7 @@ impl<'a> ChunkReader<'a> {
 
     fn read_signed_varint(&self) -> i64 {
         let n = self.read_varint() as i64;
-        (n >> 1) * (-1 * (n & 1)) // TODO: is this the best way to write that?
+        (n >> 1) ^ (-1 * (n & 1)) // TODO: is this the best way to write that?
     }
 
     pub fn read_boolean(&self) -> bool {

@@ -57,8 +57,8 @@ pub(crate) enum Value<'a> {
     Boolean(bool),
     Number(i64, i64),
     String(String),
-    Blob(Vec<u8>),
-    Value(Chunk<'a>), // TODO: is this just unknown value representation?
+    Blob(Vec<u8>), // TODO: this is a list of blobs??
+    Value(Chunk<'a>),
     List(List<'a>),
     Map(Map<'a>),
     Ref(Ref<'a>),
@@ -105,9 +105,24 @@ impl<'a> Value<'a> {
         }
     }
     pub fn to_u64(self) -> Option<u64> {
+        println!("{:?}", self);
         match self {
             Value::Number(i, e) => Some(i as u64 * 2u64.pow(e as u32)),
             Value::Value(_) => self.compile().to_u64(),
+            _ => None,
+        }
+    }
+    pub fn to_i64(self) -> Option<i64> {
+        match self {
+            Value::Number(i, e) => Some(i as i64 * 2i64.pow(e as u32)),
+            Value::Value(_) => self.compile().to_i64(),
+            _ => None,
+        }
+    }
+    pub fn to_f64(self) -> Option<f64> {
+        match self {
+            Value::Number(i, e) => Some(i as f64 * 2f64.powi(e as i32)),
+            Value::Value(_) => self.compile().to_f64(),
             _ => None,
         }
     }

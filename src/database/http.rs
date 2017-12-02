@@ -64,6 +64,11 @@ impl super::Database for Database {
     fn delete(&self, ds: Dataset) -> Result<Dataset, Error> { unimplemented!() }
     fn set_head(&self, ds: Dataset, head: Ref) -> Result<Dataset, Error> { unimplemented!() }
     fn fast_forward(&self, ds: Dataset, head: Ref) -> Result<Dataset, Error> { unimplemented!() }
+
+    fn value_from<'a, I>(&'a self, value: I) -> NomsValue<'a>
+    where I: IntoNoms, Self: Sized {
+        Value::from_noms(&Chunk::new(self, value.into_noms())).export()
+    }
 }
 
 impl super::ValueAccess for Database {

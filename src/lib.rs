@@ -25,6 +25,7 @@ pub use chunk::Chunk;
 mod http;
 mod chunk;
 mod hash;
+mod util;
 
 use std::cell::RefCell;
 use std::rc::Rc;

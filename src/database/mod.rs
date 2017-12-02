@@ -39,6 +39,9 @@ impl<'a> Default for CommitOptions<'a> {
 
 /// A trait providing full access to the underlying Noms database.
 pub trait Database {
+
+    // Noms API
+
     /// Returns the root of the database, which is a Map<String, Ref<Commit>>, where the key is the
     /// ID of the dataset.
     fn datasets(&self) -> Result<NomsMap<String, Ref>, Error>;
@@ -51,9 +54,13 @@ pub trait Database {
     fn delete(&self, ds: Dataset) -> Result<Dataset, Error>;
     fn set_head(&self, ds: Dataset, head: Ref) -> Result<Dataset, Error>;
     fn fast_forward(&self, ds: Dataset, head: Ref) -> Result<Dataset, Error>;
-    // TODO: implement stats at another time
+
+    // TODO: implement stats at another time?
     fn stats(&self) {}
     fn stats_summary(&self) -> String { UNSUPPORTED.to_string() }
+
+    fn value_from<'a, I>(&'a self, value: I) -> NomsValue<'a>
+    where I: IntoNoms, Self: Sized;
 }
 
 // TODO: this debug thing is just for compiling during development... fix it later. It should not
