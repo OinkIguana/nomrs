@@ -7,12 +7,18 @@ extern crate nomrs;
 #[macro_use] extern crate nomrs_derive;
 
 use nomrs::{Noms, Database};
-use nomrs::value::{NomsList, Empty};
+use nomrs::value::NomsList;
 
 #[derive(Clone, Debug, FromNoms, IntoNoms, NomsStruct)]
 struct Row {
     count_female: String,
     count_male: String,
+}
+
+#[derive(Clone, Debug, FromNoms, IntoNoms, NomsStruct)]
+struct Meta {
+    date: String,
+    input_file: String,
 }
 
 fn main() {
@@ -21,7 +27,11 @@ fn main() {
         .noms_version("7.18")
         .http("localhost:8000")
         .unwrap();
+
     println!("{:?}", db.datasets().unwrap());
-    println!("{:?}", db.dataset::<Empty, NomsList<Row>>("test").unwrap().head_value().unwrap().to_vec());
+    let commit = db.dataset::<Meta, NomsList<Row>>("test").unwrap().head().unwrap();
+    println!("{:?}", commit.meta());
+    println!("{:?}", commit.parents().to_set());
+    println!("{:?}", commit.value().to_vec());
     println!("{:?}", db.value_from("Hello world"));
 }

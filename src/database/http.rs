@@ -22,7 +22,9 @@ pub struct Database {
     cache: RefCell<HashMap<Hash, Vec<u8>>>,
 }
 impl ::std::fmt::Debug for Database {
-    fn fmt(&self, _: &mut ::std::fmt::Formatter) -> ::std::fmt::Result { Ok(()) }
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        write!(f, "{}", self.database)
+    }
 }
 
 impl Database {
