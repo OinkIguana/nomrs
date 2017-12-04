@@ -1,5 +1,5 @@
 //! Parse raw binary data into Noms values
-use database::ValueAccess;
+use database::ChunkStore;
 use hash::{Hash, BYTE_LEN};
 use value::{Value, Type, Kind, Ref, FromNoms, IntoNoms, Map, Set, List, MetaTuple, OrderedKey, Struct};
 use chunk::Chunk;
@@ -19,7 +19,7 @@ use std::cmp::min;
 /// Some Noms values need to be bound to a database, so the ChunkReader may be bound to a database
 /// as well. If it is not, certain operations may cause a panic.
 pub(crate) struct ChunkReader<'a> {
-    database: Option<&'a ValueAccess>,
+    database: Option<&'a ChunkStore>,
     chunk: Vec<u8>,
     offset: Cell<usize>,
 }
@@ -30,7 +30,7 @@ fn split_varint(i: u8) -> (bool, u64) {
 }
 
 impl<'a> ChunkReader<'a> {
-    pub fn new(database: Option<&'a ValueAccess>, chunk: &Vec<u8>) -> Self {
+    pub fn new(database: Option<&'a ChunkStore>, chunk: &Vec<u8>) -> Self {
         ChunkReader {
             database,
             chunk: chunk.clone(),

@@ -36,7 +36,7 @@ impl Hash {
         self.0
     }
 
-    pub fn from_string(base32: String) -> Result<Hash, Error> {
+    pub fn from_string(base32: &str) -> Result<Hash, Error> {
         let mut hash = [0; BYTE_LEN];
         let len = HASH_FORMAT.decode_mut(base32.as_bytes(), &mut hash)?;
         assert_eq!(BYTE_LEN, len);

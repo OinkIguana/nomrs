@@ -1,5 +1,5 @@
 use super::{NomsValue, Value, Ref, FromNoms, IntoNoms, MetaTuple, Collection};
-use database::ValueAccess;
+use database::ChunkStore;
 use chunk::Chunk;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
@@ -10,7 +10,7 @@ where V : Eq + Hash + FromNoms<'a> + IntoNoms;
 
 impl<'a, V> NomsSet<'a, V>
 where V: Eq + Hash + FromNoms<'a> + IntoNoms {
-    pub(crate) fn new(db: &'a ValueAccess) -> Self {
+    pub(crate) fn new(db: &'a ChunkStore) -> Self {
         NomsSet(Set::new(db))
     }
 
@@ -27,12 +27,12 @@ where V: Eq + Hash + FromNoms<'a> + IntoNoms {
 pub(crate) enum Set<'a, V = Value<'a>>
 where V: FromNoms<'a> + IntoNoms + Hash + Eq {
     Inner{
-        database: &'a ValueAccess,
+        database: &'a ChunkStore,
         raw: Vec<MetaTuple<'a>>,
         cache: HashMap<Ref<'a>, Set<'a, V>>,
     },
     Leaf{
-        database: &'a ValueAccess,
+        database: &'a ChunkStore,
         cache: HashSet<V>
     },
 }
@@ -48,11 +48,11 @@ where V: FromNoms<'a> + IntoNoms + Hash + Eq {}
 
 impl<'a, V> Set<'a, V>
 where V: FromNoms<'a> + IntoNoms + Eq + Hash{
-    pub fn new(database: &'a ValueAccess) -> Self {
+    pub fn new(database: &'a ChunkStore) -> Self {
         Set::Leaf{ database, cache: HashSet::new() }
     }
 
-    pub fn from_metatuples(database: &'a ValueAccess, raw: Vec<MetaTuple<'a>>) -> Self {
+    pub fn from_metatuples(database: &'a ChunkStore, raw: Vec<MetaTuple<'a>>) -> Self {
         Set::Inner {
             database,
             raw,
@@ -60,7 +60,7 @@ where V: FromNoms<'a> + IntoNoms + Eq + Hash{
         }
     }
 
-    pub fn from_values(database: &'a ValueAccess, raw: Vec<V>) -> Self {
+    pub fn from_values(database: &'a ChunkStore, raw: Vec<V>) -> Self {
         Set::Leaf {
             database,
             cache: raw.into_iter().collect(),
@@ -120,7 +120,7 @@ where V: FromNoms<'a> + IntoNoms + Hash + Eq {
 
 impl<'a, V> Collection<'a, NomsSet<'a, V>> for Set<'a, V>
 where V: FromNoms<'a> + IntoNoms + Hash + Eq {
-    fn database(&self) -> &'a ValueAccess {
+    fn database(&self) -> &'a ChunkStore {
         match self {
             &Set::Inner{ database, .. } => database,
             &Set::Leaf{ database, .. } => database,

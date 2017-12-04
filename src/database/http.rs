@@ -1,9 +1,9 @@
 //! Defines a database that is backed by a Noms HTTP database
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::cell::RefCell;
 use std::rc::Rc;
-use super::{CommitOptions, ValueAccess};
+use super::{CommitOptions, ChunkStore};
 use value::{NomsValue, NomsStruct, Value, Ref, FromNoms, IntoNoms, NomsMap};
 use dataset::Dataset;
 use error::Error;
@@ -48,7 +48,7 @@ impl super::Database for Database {
         if self.root.is_empty() {
             Ok(NomsMap::new(self))
         } else {
-            self.get_value(self.root)
+            self.get(self.root)
                 .and_then(|v| v.to_map().ok_or(Error::ConversionError("Value is not a map".to_string())))
         }
     }
@@ -61,8 +61,10 @@ impl super::Database for Database {
         Ok(Dataset::new(self, ds, r))
     }
     fn rebase(&self) { unimplemented!() }
-    fn commit(&self, ds: Dataset, v: NomsValue, o: CommitOptions) -> Result<Dataset, Error> { unimplemented!() }
-    fn commit_value(&self, ds: Dataset, v: NomsValue) -> Result<Dataset, Error> { unimplemented!() }
+    fn commit<I>(&self, ds: Dataset, v: I, o: CommitOptions) -> Result<Dataset, Error>
+    where I: IntoNoms, Self: Sized {
+        unimplemented!();
+    }
     fn delete(&self, ds: Dataset) -> Result<Dataset, Error> { unimplemented!() }
     fn set_head(&self, ds: Dataset, head: Ref) -> Result<Dataset, Error> { unimplemented!() }
     fn fast_forward(&self, ds: Dataset, head: Ref) -> Result<Dataset, Error> { unimplemented!() }
@@ -73,8 +75,8 @@ impl super::Database for Database {
     }
 }
 
-impl super::ValueAccess for Database {
-    fn get_values(&self, hashes: Vec<Hash>) -> Result<HashMap<Hash, Value>, Error> {
+impl super::ChunkStore for Database {
+    fn get_many(&self, hashes: HashSet<Hash>) -> Result<HashMap<Hash, Value>, Error> {
         let lookups = hashes.iter().filter(|h| !self.cache.borrow().contains_key(h)).cloned().collect();
         for (key, value) in
             self.noms.borrow_mut()
@@ -95,4 +97,15 @@ impl super::ValueAccess for Database {
                 .collect()
         )
     }
+
+    fn has_many(&self, h: HashSet<Hash>) -> Result<HashMap<Hash, bool>, Error> {
+        self.noms.borrow_mut()
+            .event_loop
+            .run(self.client.post_has_refs(self, h))
+    }
+    fn put<I>(&self, v: I) where I: IntoNoms, Self: Sized { unimplemented!() }
+    fn version(&self) -> String { unimplemented!() }
+    fn rebase(&self) { unimplemented!() }
+    fn root(&self) -> Result<Hash, Error> { unimplemented!() }
+    fn commit(&self) -> Result<(), Error> { unimplemented!() }
 }

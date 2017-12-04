@@ -1,4 +1,4 @@
-use database::ValueAccess;
+use database::ChunkStore;
 use value::{NomsValue, Empty, Commit, Ref, IntoNoms, FromNoms, NomsStruct};
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 pub struct Dataset<'a, M = Empty, V = NomsValue<'a>>
 where M: IntoNoms + FromNoms<'a> + NomsStruct<'a>, V: IntoNoms + FromNoms<'a> {
     dataset: String,
-    database: &'a ValueAccess,
+    database: &'a ChunkStore,
     reference: Ref<'a>,
     phantom_meta: PhantomData<M>,
     phantom_value: PhantomData<V>,
@@ -14,7 +14,7 @@ where M: IntoNoms + FromNoms<'a> + NomsStruct<'a>, V: IntoNoms + FromNoms<'a> {
 
 impl<'a, M, V> Dataset<'a, M, V>
 where M: IntoNoms + FromNoms<'a> + NomsStruct<'a>, V: IntoNoms + FromNoms<'a> {
-    pub(crate) fn new(database: &'a ValueAccess, dataset: &str, reference: Ref<'a>) -> Self {
+    pub(crate) fn new(database: &'a ChunkStore, dataset: &str, reference: Ref<'a>) -> Self {
         Self {
             dataset: dataset.to_string(),
             database,
@@ -28,7 +28,7 @@ where M: IntoNoms + FromNoms<'a> + NomsStruct<'a>, V: IntoNoms + FromNoms<'a> {
 
     pub fn head(&self) -> Option<Commit<'a, M, V>> {
         self.database
-            .get_value(self.reference.hash())
+            .get(self.reference.hash())
             .ok()
             .and_then(|v| v.to_struct())
     }

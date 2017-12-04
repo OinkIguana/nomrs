@@ -4,12 +4,12 @@ mod reader;
 
 pub(crate) use self::reader::ChunkReader;
 
-use database::ValueAccess;
+use database::ChunkStore;
 
 /// A chunk of raw data, associated with a database.
 #[derive(Clone, Debug)]
 pub struct Chunk<'a> {
-    database: Option<&'a ValueAccess>,
+    database: Option<&'a ChunkStore>,
     data: Vec<u8>
 }
 
@@ -21,10 +21,10 @@ impl<'a> PartialEq for Chunk<'a> {
 impl<'a> Eq for Chunk<'a> {}
 
 impl<'a> Chunk<'a> {
-    pub(crate) fn new(database: &'a ValueAccess, data: Vec<u8>) -> Self {
+    pub(crate) fn new(database: &'a ChunkStore, data: Vec<u8>) -> Self {
         Self { database: Some(database), data }
     }
-    pub(crate) fn maybe(database: Option<&'a ValueAccess>, data: Vec<u8>) -> Self {
+    pub(crate) fn maybe(database: Option<&'a ChunkStore>, data: Vec<u8>) -> Self {
         Self { database, data }
     }
 

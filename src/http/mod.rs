@@ -7,9 +7,9 @@ use tokio_core::reactor::Handle;
 use futures::{Future, Stream, future};
 use error::Error;
 use hash::{Hash, BYTE_LEN};
-use std::collections::HashMap;
+use std::collections::{HashSet, HashMap};
 use byteorder::{NetworkEndian, ByteOrder};
-use database::ValueAccess;
+use database::ChunkStore;
 
 const ROOT_PATH: &'static str           = "/root/";
 const GET_REFS_PATH: &'static str       = "/getRefs/";
@@ -53,15 +53,13 @@ impl Client {
                 .and_then(move |req| client.request(req))
                 .map_err(|err| Error::Hyper(err))
                 .and_then(retrieve_body)
-                .map(|chunk| Hash::from_string(String::from_utf8(chunk.to_vec()).unwrap()).unwrap())
+                .map(|chunk| Hash::from_string(&String::from_utf8(chunk.to_vec()).unwrap()).unwrap())
         )
     }
 
-    pub fn post_get_refs<'a>(&self, database: &'a ValueAccess, refs: Vec<Hash>) -> Box<Future<Item = HashMap<Hash, Vec<u8>>, Error = Error>> {
+    pub fn post_get_refs<'a>(&self, database: &'a ChunkStore, refs: HashSet<Hash>) -> Box<Future<Item = HashMap<Hash, Vec<u8>>, Error = Error>> {
         let client = self.client.clone();
-        let mut body = vec![0; 4];
-        NetworkEndian::write_u32(&mut body, refs.len() as u32);
-        body.extend(refs.iter().flat_map(|r| r.raw_bytes().to_vec()));
+        let body = serialize_hashes(&refs);
         Box::new(
             future::result(self.request_for(Method::Post, GET_REFS_PATH))
                 .map(|mut req| { req.set_body(body); req })
@@ -69,8 +67,8 @@ impl Client {
                 .map_err(|err| Error::Hyper(err))
                 .and_then(retrieve_body)
                 .map(|c| c.to_vec())
-                .map(|chunk| {
-                    let mut values = HashMap::new();
+                .map(move |chunk| {
+                    let mut values = HashMap::with_capacity(refs.len());
                     let mut i = 0;
                     while i != chunk.len() {
                         let hash = Hash::from_slice(&chunk[i..i + BYTE_LEN]);
@@ -85,6 +83,35 @@ impl Client {
                 })
         )
     }
+
+    pub fn post_has_refs<'a>(&self, database: &'a ChunkStore, refs: HashSet<Hash>) -> Box<Future<Item = HashMap<Hash, bool>, Error = Error>> {
+        let client = self.client.clone();
+        let body = serialize_hashes(&refs);
+        Box::new(
+            future::result(self.request_for(Method::Post, HAS_REFS_PATH))
+                .map(|mut req| { req.set_body(body); req }) // TODO: request_with_body?
+                .and_then(move |req| client.request(req))
+                .map_err(|err| Error::Hyper(err))
+                .and_then(retrieve_body)
+                .and_then(|c| String::from_utf8(c.to_vec()).map_err(|e| e.into()))
+                .and_then(move |strs| {
+                    let mut exists: HashMap<Hash, bool> = refs.iter().map(|r| (r.clone(), false)).collect();
+                    for line in strs.lines() {
+                        exists.insert(Hash::from_string(line)?, true);
+                    }
+                    Ok(exists)
+                })
+        )
+    }
+}
+
+fn serialize_hashes(hashes: &HashSet<Hash>) -> Vec<u8> {
+    let mut body = vec![0; 4];
+    NetworkEndian::write_u32(&mut body[..], hashes.len() as u32);
+    for hash in hashes {
+        body.extend_from_slice(&hash.raw_bytes());
+    }
+    body
 }
 
 fn retrieve_body(res: Response) -> Box<Future<Item = hyper::Chunk, Error = Error>> {

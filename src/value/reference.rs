@@ -1,6 +1,6 @@
 //! The Noms Reference type
 use super::{Kind, Type, Value, IntoNoms, FromNoms, Collection};
-use database::ValueAccess;
+use database::ChunkStore;
 use hash::{Hash, EMPTY_HASH};
 use chunk::Chunk;
 use std::fmt::{Display, Formatter};
@@ -11,7 +11,7 @@ use std::hash::Hasher;
 /// TODO: type references?
 #[derive(Clone)]
 pub struct Ref<'a> {
-    database: &'a ValueAccess,
+    database: &'a ChunkStore,
     hash: Hash,
     value_type: Type,
     height: u64,
@@ -24,7 +24,7 @@ impl<'a> ::std::fmt::Debug for Ref<'a> {
 }
 
 impl<'a> Ref<'a> {
-    pub(crate) fn new(database: &'a ValueAccess, hash: Hash, value_type: Type, height: u64) -> Self {
+    pub(crate) fn new(database: &'a ChunkStore, hash: Hash, value_type: Type, height: u64) -> Self {
         Self{ database, hash, value_type, height }
     }
     pub fn is_empty(&self) -> bool {
@@ -71,7 +71,7 @@ impl<'a> FromNoms<'a> for Ref<'a> {
 }
 
 impl<'a> Collection<'a, Value<'a>> for Ref<'a> {
-    fn database(&self) -> &'a ValueAccess {
+    fn database(&self) -> &'a ChunkStore {
         self.database
     }
 }

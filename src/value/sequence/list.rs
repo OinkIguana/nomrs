@@ -1,5 +1,5 @@
 use super::{NomsValue, Value, FromNoms, IntoNoms, MetaTuple, Collection};
-use database::ValueAccess;
+use database::ChunkStore;
 use chunk::Chunk;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -8,7 +8,7 @@ where V: FromNoms<'a> + IntoNoms;
 
 impl<'a, V> NomsList<'a, V>
 where V: FromNoms<'a> + IntoNoms + Clone {
-    pub(crate) fn new(db: &'a ValueAccess) -> Self {
+    pub(crate) fn new(db: &'a ChunkStore) -> Self {
         NomsList(List::new(db))
     }
 
@@ -25,29 +25,29 @@ where V: FromNoms<'a> + IntoNoms + Clone {
 pub(crate) enum List<'a, V = Value<'a>>
 where V: FromNoms<'a> + IntoNoms {
     Inner{
-        database: &'a ValueAccess,
+        database: &'a ChunkStore,
         raw: Vec<MetaTuple<'a>>,
     },
     Leaf{
-        database: &'a ValueAccess,
+        database: &'a ChunkStore,
         cache: Vec<V>,
     },
 }
 
 impl<'a, V> List<'a, V>
 where V: FromNoms<'a> + IntoNoms {
-    pub fn new(database: &'a ValueAccess) -> Self {
+    pub fn new(database: &'a ChunkStore) -> Self {
         List::Leaf{ database, cache: Vec::new() }
     }
 
-    pub fn from_metatuples(database: &'a ValueAccess, raw: Vec<MetaTuple<'a>>) -> Self {
+    pub fn from_metatuples(database: &'a ChunkStore, raw: Vec<MetaTuple<'a>>) -> Self {
         List::Inner {
             database,
             raw,
         }
     }
 
-    pub fn from_values(database: &'a ValueAccess, raw: Vec<V>) -> Self {
+    pub fn from_values(database: &'a ChunkStore, raw: Vec<V>) -> Self {
         List::Leaf {
             database,
             cache: raw.into_iter().collect(),
@@ -115,7 +115,7 @@ where V: FromNoms<'a> + IntoNoms {
 
 impl<'a, V> Collection<'a, NomsList<'a, V>> for List<'a, V>
 where V: FromNoms<'a> + IntoNoms {
-    fn database(&self) -> &'a ValueAccess {
+    fn database(&self) -> &'a ChunkStore {
         match self {
             &List::Inner{ database, .. } => database,
             &List::Leaf{ database, .. } => database,

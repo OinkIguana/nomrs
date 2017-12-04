@@ -9,7 +9,7 @@ use value::{NomsValue, NomsStruct, Value, Ref, NomsMap, FromNoms, IntoNoms};
 use error::Error;
 use hash::Hash;
 use InnerNoms;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 const DEFAULT_VERSION: &'static str = "7.18";
 const UNSUPPORTED: &'static str = "Unsupported";
@@ -38,6 +38,8 @@ impl<'a> Default for CommitOptions<'a> {
 }
 
 /// A trait providing full access to the underlying Noms database.
+// TODO: is this necessary? or just use the chunk store and dataset APIs?
+//       maybe should spend some time learning how original Noms is used in practice
 pub trait Database {
 
     // Noms API
@@ -49,8 +51,12 @@ pub trait Database {
     fn dataset<'a, M, V>(&'a self, ds: &str) -> Result<Dataset<M, V>, Error>
     where M: FromNoms<'a> + IntoNoms + NomsStruct<'a>, V: FromNoms<'a> + IntoNoms, Self: Sized;
     fn rebase(&self);
-    fn commit(&self, ds: Dataset, v: NomsValue, o: CommitOptions) -> Result<Dataset, Error>;
-    fn commit_value(&self, ds: Dataset, v: NomsValue) -> Result<Dataset, Error>;
+    fn commit<I>(&self, ds: Dataset, v: I, o: CommitOptions) -> Result<Dataset, Error>
+    where I: IntoNoms, Self: Sized;
+    fn commit_value<I>(&self, ds: Dataset, v: I) -> Result<Dataset, Error>
+    where I: IntoNoms, Self: Sized {
+        self.commit(ds, v, CommitOptions::default())
+    }
     fn delete(&self, ds: Dataset) -> Result<Dataset, Error>;
     fn set_head(&self, ds: Dataset, head: Ref) -> Result<Dataset, Error>;
     fn fast_forward(&self, ds: Dataset, head: Ref) -> Result<Dataset, Error>;
@@ -63,13 +69,31 @@ pub trait Database {
     where I: IntoNoms, Self: Sized;
 }
 
+/// Basically the a Rust ChunkStore
 // TODO: this debug thing is just for compiling during development... fix it later. It should not
 //       be a requirement
-pub(crate) trait ValueAccess: Database + ::std::fmt::Debug {
-    fn get_value(&self, h: Hash) -> Result<Value, Error> {
-        self.get_values(vec![h]).map(|mut v| v.remove(&h).unwrap())
+pub(crate) trait ChunkStore: Database + ::std::fmt::Debug {
+    fn get(&self, h: Hash) -> Result<Value, Error> {
+        let mut hs = HashSet::with_capacity(1);
+        hs.insert(h);
+        self.get_many(hs).and_then(move |mut v| v.remove(&h).ok_or(Error::NoValueForRef(h)))
     }
-    fn get_values(&self, Vec<Hash>) -> Result<HashMap<Hash, Value>, Error>;
+    fn get_many(&self, HashSet<Hash>) -> Result<HashMap<Hash, Value>, Error>;
+    fn has(&self, h: Hash) -> Result<bool, Error> {
+        let mut hs = HashSet::with_capacity(1);
+        hs.insert(h);
+        self.has_many(hs).map(|mut v| v.remove(&h).unwrap_or(false))
+    }
+    fn has_many(&self, h: HashSet<Hash>) -> Result<HashMap<Hash, bool>, Error>;
+    fn put<I>(&self, v: I) where I: IntoNoms, Self: Sized;
+    fn version(&self) -> String;
+    fn rebase(&self);
+    fn root(&self) -> Result<Hash, Error>;
+    fn commit(&self) -> Result<(), Error>;
+
+    // TODO: implement stats at another time?
+    fn stats(&self) -> Option<()> { None }
+    fn stats_summary(&self) -> String { "Unsupported".to_string() }
 }
 
 /// Used to construct a new connection to the database

@@ -1,5 +1,5 @@
 use super::{NomsValue, Value, Ref, FromNoms, IntoNoms, MetaTuple, Collection};
-use database::ValueAccess;
+use database::ChunkStore;
 use std::collections::HashMap;
 use chunk::Chunk;
 use std::hash::Hash;
@@ -10,7 +10,7 @@ where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms;
 
 impl<'a, K, V> NomsMap<'a, K, V>
 where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms {
-    pub(crate) fn new(db: &'a ValueAccess) -> Self {
+    pub(crate) fn new(db: &'a ChunkStore) -> Self {
         NomsMap(Map::new(db))
     }
 
@@ -33,26 +33,26 @@ where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms {
 pub(crate) enum Map<'a, K = Value<'a>, V = Value<'a>>
 where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms {
     Inner{
-        database: &'a ValueAccess,
+        database: &'a ChunkStore,
         raw: Vec<MetaTuple<'a>>,
         cache: HashMap<Ref<'a>, Map<'a, K, V>>,
     },
     Leaf{
-        database: &'a ValueAccess,
+        database: &'a ChunkStore,
         cache: HashMap<K, V>,
     },
 }
 
 impl<'a, K, V> Map<'a, K, V>
 where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms {
-    pub fn new(database: &'a ValueAccess) -> Self {
+    pub fn new(database: &'a ChunkStore) -> Self {
         Map::Leaf {
             database,
             cache: HashMap::new(),
         }
     }
 
-    pub fn from_metatuples(database: &'a ValueAccess, raw: Vec<MetaTuple<'a>>) -> Self {
+    pub fn from_metatuples(database: &'a ChunkStore, raw: Vec<MetaTuple<'a>>) -> Self {
         Map::Inner {
             database,
             raw,
@@ -60,7 +60,7 @@ where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms {
         }
     }
 
-    pub fn from_values(database: &'a ValueAccess, raw: Vec<(K, V)>) -> Self {
+    pub fn from_values(database: &'a ChunkStore, raw: Vec<(K, V)>) -> Self {
         Map::Leaf {
             database,
             cache: raw.into_iter().collect(),
@@ -140,7 +140,7 @@ where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms {
 
 impl<'a, K, V> Collection<'a, NomsMap<'a, K, V>> for Map<'a, K, V>
 where K: FromNoms<'a> + IntoNoms + Eq + Hash, V: FromNoms<'a> + IntoNoms {
-    fn database(&self) -> &'a ValueAccess {
+    fn database(&self) -> &'a ChunkStore {
         match self {
             &Map::Inner{ database, .. } => database,
             &Map::Leaf{ database, .. } => database,
