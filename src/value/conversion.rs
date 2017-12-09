@@ -1,7 +1,7 @@
 //! Defines some conversions from basic Noms types to standard Rust types
 use super::{varint, Value, Kind};
 use chunk::Chunk;
-use util::frexp;
+use util::frexp::frexp;
 
 /// For converting from Rust types to Noms binary data
 pub trait IntoNoms: ::std::fmt::Debug + Clone {

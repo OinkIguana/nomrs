@@ -17,6 +17,7 @@ pub mod database;
 pub mod dataset;
 pub mod value;
 pub mod error;
+pub mod util;
 
 // TODO: make a prelude of some sort...
 pub use database::Database;
@@ -25,7 +26,6 @@ pub use chunk::Chunk;
 mod http;
 mod chunk;
 mod hash;
-mod util;
 
 use std::cell::RefCell;
 use std::rc::Rc;

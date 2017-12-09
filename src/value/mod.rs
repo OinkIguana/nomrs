@@ -6,7 +6,6 @@ mod sequence;
 mod kind;
 mod structure;
 mod collection;
-mod varint;
 
 pub use self::kind::Type;
 pub use self::reference::Ref;
@@ -20,6 +19,7 @@ pub(crate) use self::kind::Kind;
 pub(crate) use self::collection::Collection;
 pub(crate) use self::structure::Struct;
 
+use util::varint;
 use chunk::Chunk;
 use hash::{hash, Hash};
 use std::cmp::Ordering;

@@ -5,17 +5,18 @@
 
 extern crate nomrs;
 #[macro_use] extern crate nomrs_derive;
+extern crate byteorder;
 
 use nomrs::{Noms, Database};
 use nomrs::value::NomsList;
 
-#[derive(Clone, Debug, FromNoms, IntoNoms, NomsStruct)]
+#[derive(Clone, Debug, Noms)]
 struct Row {
     count_female: String,
     count_male: String,
 }
 
-#[derive(Clone, Debug, FromNoms, IntoNoms, NomsStruct)]
+#[derive(Clone, Debug, Noms)]
 struct Meta {
     date: String,
     input_file: String,
@@ -34,4 +35,5 @@ fn main() {
     println!("{:?}", commit.parents().to_set());
     println!("{:?}", commit.value().to_vec());
     println!("{:?}", db.value_from("Hello world"));
+    println!("{:?}", db.value_from(Row{ count_female: "30".to_string(), count_male: "150".to_string() }));
 }
