@@ -90,7 +90,6 @@ impl<'a> ChunkReader<'a> {
         n
     }
 
-    // TODO: make this handle negative varints
     fn read_varint(&self) -> u64 {
         let (msb, bits) = split_varint(self.read_u8());
         if msb {

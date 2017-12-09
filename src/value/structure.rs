@@ -45,8 +45,8 @@ impl<'a> IntoNoms for Struct<'a> {
     }
 }
 impl<'a> FromNoms<'a> for Struct<'a> {
-    fn from_noms(_chunk: &Chunk) -> Self {
-        unimplemented!();
+    fn from_noms(chunk: &Chunk<'a>) -> Self {
+        chunk.reader().read_struct()
     }
 }
 

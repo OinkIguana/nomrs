@@ -36,6 +36,10 @@ impl<'a> IntoNoms for Value<'a> {
             &Value::String(ref s) => s.into_noms(),
             &Value::Value(ref chunk) => chunk.data().clone(),
             &Value::Ref(ref reference) => reference.into_noms(),
+            &Value::Struct(ref structure) => structure.into_noms(),
+            &Value::Type(ref t) => t.into_noms(),
+            &Value::Union(ref v) => v.into_noms(),
+            // TODO: list map set blob (needs ptree encoder)
             _ => unimplemented!("Trying to turn {:?} to bytes", self),
         }
     }
