@@ -62,7 +62,7 @@ pub trait Database {
     fn fast_forward(&self, ds: Dataset, head: Ref) -> Result<Dataset, Error>;
 
     // TODO: implement stats at another time?
-    fn stats(&self) {}
+    fn stats(&self) -> Option<()> { None }
     fn stats_summary(&self) -> String { UNSUPPORTED.to_string() }
 
     fn value_from<'a, I>(&'a self, value: I) -> NomsValue<'a>
@@ -92,8 +92,8 @@ pub(crate) trait ChunkStore: Database + ::std::fmt::Debug {
     fn commit(&self) -> Result<(), Error>;
 
     // TODO: implement stats at another time?
-    fn stats(&self) -> Option<()> { None }
-    fn stats_summary(&self) -> String { "Unsupported".to_string() }
+    fn stats(&self) -> Option<()> { Database::stats(self) }
+    fn stats_summary(&self) -> String { Database::stats_summary(self) }
 }
 
 /// Used to construct a new connection to the database
